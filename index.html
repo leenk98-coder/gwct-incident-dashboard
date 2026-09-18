@@ -1712,6 +1712,15 @@ function toCsv(rows){
   return "﻿" + [CSV_HEAD].concat(rows.map(csvRow)).map(r => r.map(q).join(",")).join("\r\n");
 }
 
+/* 아티팩트 밖(GitHub Pages·로컬 파일)에서 쓰는 저장 폴백 — window.claude 가 없을 때 */
+function browserSave(name, data, mime){
+  const url = URL.createObjectURL(new Blob([data], { type: mime }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /* ═══════════ 첨부 파일 (claude assets) ═══════════ */
 function useAssets(){
   const [api, setApi] = useState(undefined);
@@ -2247,7 +2256,11 @@ function App(){
     const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
     const name = "GWCT_사고현황_" + (year === "전체" ? "전체" : year) + "_"
       + new Date().toISOString().slice(0, 10) + ".csv";
-    if (!dl){ flash("이 화면에서는 CSV 저장을 쓸 수 없습니다. 발행된 페이지에서 열어 주십시오."); return; }
+    if (!dl){
+      browserSave(name, toCsv(list), "text/csv;charset=utf-8");
+      flash(list.length + "건을 CSV로 내려받았습니다");
+      return;
+    }
     try {
       const res = await dl.save({ filename:name, data:toCsv(list) });
       flash(res.status === "saved" ? list.length + "건을 CSV로 저장했습니다" : "파일을 전달했습니다");
@@ -2260,9 +2273,13 @@ function App(){
   async function exportJson(){
     const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
     const name = "GWCT_데이터_" + new Date().toISOString().slice(0, 10) + ".json";
-    if (!dl){ flash("이 화면에서는 JSON 저장을 쓸 수 없습니다. 발행된 페이지에서 열어 주십시오."); return; }
+    const data = JSON.stringify({ rows: store.rows, lists: store.lists, exportedAt: nowISO() }, null, 2);
+    if (!dl){
+      browserSave(name, data, "application/json;charset=utf-8");
+      flash("JSON 파일로 내려받았습니다");
+      return;
+    }
     try {
-      const data = JSON.stringify({ rows: store.rows, lists: store.lists, exportedAt: nowISO() }, null, 2);
       const res = await dl.save({ filename:name, data });
       flash(res.status === "saved" ? "JSON 파일로 저장했습니다" : "파일을 전달했습니다");
     } catch (e){
