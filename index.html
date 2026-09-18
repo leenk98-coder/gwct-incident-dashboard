@@ -228,6 +228,7 @@ function blankIncident(){
     insNo:"", insPaid:0, deductible:0, surveyor:"",
     costDetail:"", progress:"", owner:"", release:"",
     rounds:[blankRound("초기")],
+    files:[],
     status:"접수", closedAt:"", log:[],
   };
 }
@@ -250,6 +251,7 @@ function withDefaults(r){
   if (!o.cause) o.cause = "";
   if (!o.blame) o.blame = "";
   if (!o.summary) o.summary = "";
+  if (!Array.isArray(o.files)) o.files = [];
   return o;
 }
 function roundLabel(rounds, i){
@@ -1136,6 +1138,7 @@ function FormDialog(p){
     setErr(""); setBusy(true);
     const last = d.rounds[d.rounds.length - 1] || {};
     const rec = Object.assign(clone(d), {
+      files: d.files || [],
       dmg:(d.dmg || []).filter(x => x.desc || x.cost || x.fin),
       dmgTotal, finTotal, paidTotal,
       insPaid: Number(payMap["보험사"]) || 0,
@@ -1253,6 +1256,11 @@ function FormDialog(p){
                   className:"accent-[hsl(var(--primary))]" }), k + " 피해"))),
             D("text-[11px] text-muted-foreground mt-1.5",
               "구체적인 피해 내용과 금액은 아래 '피해내역 및 예상비용'에 적습니다."))),
+
+        /* ── 현장 사진 · 첨부 ────────────────────── */
+        Grp("현장 사진 · 첨부", "올린 사진은 사고보고서 사진란에 자동으로 들어갑니다",
+          h(Attach, { rec:d, noBorder:true, hideTitle:true, idSuffix:"form",
+            onSave:async next => setD(prev => Object.assign({}, prev, { files: next.files || [] })) })),
 
         /* ── 피해내역 및 예상비용 ──────────────────── */
         Grp("피해내역 및 예상비용", "실제 피해가 발생한 대상만 고르십시오",
@@ -1816,6 +1824,7 @@ const isImg = f => /^image\//.test((f && f.type) || "");
 function Attach(p){
   const assets = useAssets();
   const files = p.rec.files || [];
+  const inputId = "at-" + (p.rec._id || p.idSuffix || "new");
   const urls = useFileUrls(files, assets);
   const srcOf = f => (assets && assets.local ? (urls[f.id] || "") : blobSrc(f));
   const [busy, setBusy] = useState("");
@@ -1851,17 +1860,18 @@ function Attach(p){
     setBusy("");
   }
 
-  return D("py-4 border-b border-border",
+  return D(cls("py-4", p.noBorder ? "" : "border-b border-border"),
     D("flex items-center gap-2 mb-2.5",
-      D("font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground", "현장 사진 · 첨부"),
+      p.hideTitle ? null
+        : D("font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground", "현장 사진 · 첨부"),
       files.length ? S("font-mono text-[10.5px] text-muted-foreground", files.length + "개") : null,
       assets && assets.local ? h(Badge, { className:"border-border bg-muted text-muted-foreground" },
         "이 브라우저에만 저장") : null,
       assets ? D("ml-auto",
-        h("label", { htmlFor:"at-" + p.rec._id,
+        h("label", { htmlFor:inputId,
           className:"inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-input bg-card hover:bg-accent cursor-pointer text-[12.5px] font-medium" },
           h(Icon, { n:"camera", c:"w-3.5 h-3.5" }), "사진·파일 추가"),
-        h("input", { id:"at-" + p.rec._id, type:"file", multiple:true,
+        h("input", { id:inputId, type:"file", multiple:true,
           accept:"image/*,.pdf", onChange:add, className:"hidden" })) : null),
 
     err ? D("mb-2 text-[11.5px] text-destructive", err) : null,
