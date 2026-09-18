@@ -206,7 +206,7 @@ const ORGS   = ["GWCT","도급사"];
 const CAUSES = ["운전원 부주의","정비 불량","작업 절차 미준수","제3자 과실","기상 악화","원인 조사 중"];
 const BLAMES = ["운전원","정비팀","도급사","선사","화주","제3자","조사 중"];
 const EQUIPS = ["T/C274","T/C271","Q/C01","Q/C02","Y/T15","R/S03"];
-const HARMS  = ["대인","대물","기타"];
+const HARMS  = ["대인","대물","재산","기타"];
 /* 회차별 보고 — 초기 → 중간1·2… → 종결 */
 const RKINDS = ["초기","중간","종결"];
 const RTITLE = { "초기":"사고상황보고", "중간":"사고상황(중간)보고", "종결":"사고상황(종결)보고" };
@@ -247,7 +247,7 @@ function blankIncident(){
   return {
     no:"", grp:"GWCT", vendor:"", type:TYPES[0], date:new Date().toISOString().slice(0,10), time:"", place:"",
     dept:"GC", equip:"", who:"", cause:"", blame:"", summary:"", event:"",
-    harm:{ "대인":{on:false,txt:""}, "대물":{on:false,txt:""}, "기타":{on:false,txt:""} },
+    harm:{ "대인":{on:false,txt:""}, "대물":{on:false,txt:""}, "재산":{on:false,txt:""}, "기타":{on:false,txt:""} },
     line:"", lineContact:"", cargo:"",
     dmg:[], dmgTotal:0, finTotal:0, pay:[], paidTotal:0,
     insNo:"", insPaid:0, deductible:0, surveyor:"",
@@ -259,7 +259,7 @@ function blankIncident(){
 /* 기존 46건에는 없는 항목을 화면에서만 기본값으로 채웁니다(데이터는 건드리지 않습니다) */
 function withDefaults(r){
   const o = Object.assign({}, r);
-  if (!o.harm) o.harm = { "대인":{on:false,txt:""}, "대물":{on:false,txt:""}, "기타":{on:false,txt:""} };
+  if (!o.harm) o.harm = { "대인":{on:false,txt:""}, "대물":{on:false,txt:""}, "재산":{on:false,txt:""}, "기타":{on:false,txt:""} };
   HARMS.forEach(k => { if (!o.harm[k]) o.harm[k] = { on:false, txt:"" }; });
   o.dmg = (o.dmg || []).map(d => Object.assign({ org:"", contact:"", fin:0 }, d));
   if (!o.rounds || !o.rounds.length){
@@ -1061,13 +1061,13 @@ function FormDialog(p){
                   className:cls(FIELD, "h-9") }))),
 
         D("grid gap-3 sm:grid-cols-4 mt-3",
-          D(null, h(Lbl, { for:"i-date" }, "발생일자 *"),
+          D(null, h(Lbl, { for:"i-date" }, D("font-bold", "발생일자 *")),
             h("input", { id:"i-date", type:"date", value:d.date, onChange:e => set("date", e.target.value),
               className:cls(FIELD, "h-9 font-mono") })),
-          D(null, h(Lbl, { for:"i-time" }, "발생시각"),
+          D(null, h(Lbl, { for:"i-time" }, D("font-bold", "발생시각")),
             h("input", { id:"i-time", type:"time", value:d.time, onChange:e => set("time", e.target.value),
               className:cls(FIELD, "h-9 font-mono") })),
-          D("sm:col-span-2", h(Lbl, { for:"i-place" }, "발생 장소"),
+          D("sm:col-span-2", h(Lbl, { for:"i-place" }, D("font-bold", "발생 장소")),
             h("input", { id:"i-place", value:d.place, onChange:e => set("place", e.target.value),
               placeholder:"5L Block-15Bay / 2번 안벽 등", className:cls(FIELD, "h-9") }))),
 
@@ -1099,11 +1099,11 @@ function FormDialog(p){
 
         /* ── 사고 경위 및 피해 상황 ────────────────── */
         Grp("사고 경위 및 피해 상황", null,
-          D(null, h(Lbl, { for:"i-event" }, "사고 경위 (개요)"),
+          D(null, h(Lbl, { for:"i-event" }, D("font-bold", "사고 경위 (개요)")),
             h(Txt, { id:"i-event", value:d.event, onChange:e => set("event", e.target.value),
               placeholder:"상기 운전원은 …" })),
           D("mt-3",
-            D("text-[11.5px] font-medium text-muted-foreground mb-2", "피해 상황 — 해당하는 것만 체크하십시오"),
+            D("text-[11.5px] font-medium text-muted-foreground mb-2", D("font-bold", "피해 상황 — 해당하는 것만 체크하십시오")),
             D("flex flex-col gap-2",
               HARMS.map(k => D({ key:k, className:"grid gap-2 items-start",
                 style:{ gridTemplateColumns:"104px 1fr" } },
@@ -1120,12 +1120,19 @@ function FormDialog(p){
 
         /* ── 피해내역 및 예상비용 ──────────────────── */
         Grp("피해내역 및 예상비용", "실제 피해가 발생한 대상만 고르십시오",
-          D("flex flex-wrap gap-1.5 mb-3",
+          D("flex flex-wrap gap-1.5 mb-3 items-center",
             DMG_CATS.map(c => h("button", { key:c, type:"button", onClick:() => toggleCat(c),
               "aria-pressed": picked.indexOf(c) >= 0,
               className:cls("h-8 px-3 rounded-full border text-[12.5px] font-medium transition-colors",
                 picked.indexOf(c) >= 0 ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:border-ring") }, c))),
+                  : "border-border bg-card text-muted-foreground hover:border-ring") }, c)),
+            D("ml-auto flex gap-1.5",
+              h(Btn, { v:"ghost", sz:"sm", className:"text-[12px]",
+                onClick:() => { DMG_CATS.forEach(c => { if (picked.indexOf(c) < 0) toggleCat(c); }); } },
+                "전체선택"),
+              h(Btn, { v:"ghost", sz:"sm", className:"text-[12px]",
+                onClick:() => { DMG_CATS.forEach(c => { if (picked.indexOf(c) >= 0) toggleCat(c); }); } },
+                "전체해제"))),
 
           picked.length ? D("flex flex-col gap-2",
             (d.dmg || []).map(x => D({ key:x.cat, className:"rounded-md border border-border bg-muted/30 p-2.5" },
@@ -1134,7 +1141,46 @@ function FormDialog(p){
                 h(Btn, { v:"ghost", sz:"sm", className:"ml-auto text-muted-foreground",
                   onClick:() => toggleCat(x.cat) }, "해제")),
               D(null,
-                D({ className:"grid gap-2 sm:grid-cols-2" },
+                x.cat === "터미널장비" ? D({ className:"grid gap-2 sm:grid-cols-2" },
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "장비명"),
+                    h("input", { value:x.org || "", onChange:e => setDmg(x.cat, "org", e.target.value),
+                      placeholder:"T/C·G/C·R/S·Power Cable 등", className:cls(FIELD, "h-9") })),
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "담당부서/담당자/연락처"),
+                    h("input", { value:x.contact || "", onChange:e => setDmg(x.cat, "contact", e.target.value),
+                      placeholder:"최유선주임/010-8872-1565", className:cls(FIELD, "h-9") })))
+                : x.cat === "화물" ? D({ className:"grid gap-2 sm:grid-cols-2" },
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "화주"),
+                    h("input", { value:x.org || "", onChange:e => setDmg(x.cat, "org", e.target.value),
+                      placeholder:"화주명/담당부서/담당자", className:cls(FIELD, "h-9") })),
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "연락처"),
+                    h("input", { value:x.contact || "", onChange:e => setDmg(x.cat, "contact", e.target.value),
+                      placeholder:"010-8872-1565", className:cls(FIELD, "h-9") })))
+                : x.cat === "터미널시설물" ? D({ className:"grid gap-2 sm:grid-cols-2" },
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "시설명"),
+                    h("input", { value:x.org || "", onChange:e => setDmg(x.cat, "org", e.target.value),
+                      placeholder:"시설명/손상상세", className:cls(FIELD, "h-9") })),
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "담당부서/담당자/연락처"),
+                    h("input", { value:x.contact || "", onChange:e => setDmg(x.cat, "contact", e.target.value),
+                      placeholder:"최유선주임/010-8872-1565", className:cls(FIELD, "h-9") })))
+                : x.cat === "외부차량" ? D({ className:"grid gap-2 sm:grid-cols-2" },
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "외부차량번호"),
+                    h("input", { value:x.org || "", onChange:e => setDmg(x.cat, "org", e.target.value),
+                      placeholder:"차량번호", className:cls(FIELD, "h-9") })),
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "소속/차주/연락처"),
+                    h("input", { value:x.contact || "", onChange:e => setDmg(x.cat, "contact", e.target.value),
+                      placeholder:"소속/차주명/010-8872-1565", className:cls(FIELD, "h-9") })))
+                : x.cat === "인명피해" ? D({ className:"grid gap-2 sm:grid-cols-2" },
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "소속"),
+                    h("input", { value:x.org || "", onChange:e => setDmg(x.cat, "org", e.target.value),
+                      placeholder:"소속", className:cls(FIELD, "h-9") })),
+                  D(null, D("text-[10.5px] text-muted-foreground mb-1", "성명/연락처"),
+                    h("input", { value:x.contact || "", onChange:e => setDmg(x.cat, "contact", e.target.value),
+                      placeholder:"성명/010-8872-1565", className:cls(FIELD, "h-9") })))
+                : x.cat === "기타" ? D(null,
+                  D("text-[10.5px] text-muted-foreground mb-1", "기타사항"),
+                  h("input", { value:x.org || "", onChange:e => setDmg(x.cat, "org", e.target.value),
+                    placeholder:"운송비·검사비·체화료 등", className:cls(FIELD, "h-9") }))
+                : D({ className:"grid gap-2 sm:grid-cols-2" },
                   D(null, D("text-[10.5px] text-muted-foreground mb-1", "선사명/기관명"),
                     h("input", { value:x.org || "", onChange:e => setDmg(x.cat, "org", e.target.value),
                       placeholder:"팬스코 / GWCT", className:cls(FIELD, "h-9") })),
