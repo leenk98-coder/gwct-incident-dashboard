@@ -415,16 +415,26 @@ function useStore(){
   // localStorage 헬퍼 함수
   const saveToLocalStorage = (data) => {
     try {
-      localStorage.setItem("gwct_incidents", JSON.stringify(data));
+      const jsonStr = JSON.stringify(data);
+      const sizeKb = (new Blob([jsonStr]).size / 1024).toFixed(2);
+      localStorage.setItem("gwct_incidents", jsonStr);
+      console.log(`[localStorage 저장 성공] ${data.length}건, ${sizeKb}KB, 시간: ${new Date().toISOString()}`);
     } catch (e) {
-      console.warn("localStorage 저장 실패:", e);
+      console.warn("localStorage 저장 실패:", e, "데이터 건수:", data.length);
     }
   };
 
   const loadFromLocalStorage = () => {
     try {
       const stored = localStorage.getItem("gwct_incidents");
-      return stored ? JSON.parse(stored) : [];
+      const data = stored ? JSON.parse(stored) : [];
+      if (data.length > 0) {
+        const sizeKb = (new Blob([stored]).size / 1024).toFixed(2);
+        console.log(`[localStorage 로드 성공] ${data.length}건, ${sizeKb}KB, 시간: ${new Date().toISOString()}`);
+      } else {
+        console.log("[localStorage 로드] 저장된 데이터 없음");
+      }
+      return data;
     } catch (e) {
       console.warn("localStorage 로드 실패:", e);
       return [];
@@ -446,10 +456,19 @@ function useStore(){
           localRef.current = storedData;
           setRows(storedData);
         }
+        console.log("[초기화] 로컬 모드, localStorage 데이터 사용:", storedData.length, "건");
         return;
       }
 
       dbRef.current = db;
+
+      // Firebase가 있을 때도 먼저 localStorage 데이터를 표시 (빠른 UI 반응)
+      if (storedData.length > 0) {
+        localRef.current = storedData;
+        setRows(storedData);
+        console.log("[초기화] Firebase 모드: localStorage 캐시 먼저 표시 -", storedData.length, "건");
+      }
+
       try {
         unsub = db.collection("incidents").onSnapshot(
           snap => {
@@ -458,11 +477,18 @@ function useStore(){
             setRows(dbData);
             // Firebase 데이터도 localStorage에 동기화
             saveToLocalStorage(dbData);
+            console.log("[Firebase 동기화] 데이터 수신 및 localStorage 업데이트:", dbData.length, "건");
             setConn("연결됨");
           },
-          () => live && setConn("오류")
+          (error) => {
+            console.warn("[Firebase 오류] 데이터 로드 실패:", error);
+            live && setConn("오류");
+          }
         );
-      } catch (e) { setConn("오류"); }
+      } catch (e) {
+        console.warn("[Firebase 연결 오류]", e);
+        setConn("오류");
+      }
       try {
         unsub2 = db.collection("meta").onSnapshot(snap => {
           if (!live) return;
@@ -470,7 +496,9 @@ function useStore(){
           const v = doc ? (doc.data() || {}) : {};
           listRef.current = v; setLists(v);
         }, () => {});
-      } catch (e) {}
+      } catch (e) {
+        console.warn("[메타 데이터 로드 오류]", e);
+      }
     })();
     return () => { live = false;
       if (unsub) try { unsub(); } catch (e) {}
@@ -494,13 +522,24 @@ function useStore(){
     delete body._id;
     if (!body.createdAt) body.createdAt = nowISO();
     if (dbRef.current) {
-      await dbRef.current.doc("incidents/" + id).set(body);
+      try {
+        await dbRef.current.doc("incidents/" + id).set(body);
+        console.log("[save] Firebase에 저장 완료:", id);
+        // Firebase 저장 후에도 localStorage에 즉시 동기화 (오프라인 지원)
+        const fullRecord = Object.assign({ _id: id }, body);
+        localRef.current = localRef.current.filter(r => r._id !== id).concat([fullRecord]);
+        saveToLocalStorage(localRef.current);
+      } catch (e) {
+        console.error("[save] Firebase 저장 실패:", id, e);
+        throw e;
+      }
       return id;
     }
     localRef.current = localRef.current.filter(r => r._id !== id).concat([Object.assign({ _id:id }, body)]);
     setRows(localRef.current.slice());
-    // localStorage에 저장
+    // localStorage에 저장 (로컬 모드)
     saveToLocalStorage(localRef.current);
+    console.log("[save] 로컬 저장 완료:", id);
     return id;
   }, []);
 
@@ -531,25 +570,46 @@ function useStore(){
     }
     body.updatedAt = nowISO();
     if (dbRef.current){
-      await dbRef.current.doc("incidents/" + id).set(body);
+      try {
+        await dbRef.current.doc("incidents/" + id).set(body);
+        console.log("[upsert] Firebase에 저장 완료:", id, "모드:", mode);
+        // Firebase 저장 후에도 localStorage에 즉시 동기화 (엑셀 업로드 중 페이지 새로고침 대비)
+        const fullRecord = Object.assign({ _id: id }, body);
+        localRef.current = localRef.current.filter(r => r._id !== id).concat([fullRecord]);
+        saveToLocalStorage(localRef.current);
+      } catch (e) {
+        console.error("[upsert] Firebase 저장 실패:", id, e);
+        throw e;
+      }
       return id;
     }
     localRef.current = localRef.current.filter(r => r._id !== id).concat([Object.assign({ _id:id }, body)]);
     setRows(localRef.current.slice());
-    // localStorage에 저장
+    // localStorage에 저장 (로컬 모드)
     saveToLocalStorage(localRef.current);
+    console.log("[upsert] 로컬 저장 완료:", id, "모드:", mode);
     return id;
   }, []);
 
   const remove = useCallback(async (id) => {
     if (dbRef.current) {
-      await dbRef.current.doc("incidents/" + id).delete();
+      try {
+        await dbRef.current.doc("incidents/" + id).delete();
+        console.log("[remove] Firebase에서 삭제 완료:", id);
+        // Firebase 삭제 후에도 localStorage 동기화
+        localRef.current = localRef.current.filter(r => r._id !== id);
+        saveToLocalStorage(localRef.current);
+      } catch (e) {
+        console.error("[remove] Firebase 삭제 실패:", id, e);
+        throw e;
+      }
       return;
     }
     localRef.current = localRef.current.filter(r => r._id !== id);
     setRows(localRef.current.slice());
     // localStorage에서도 제거
     saveToLocalStorage(localRef.current);
+    console.log("[remove] 로컬 삭제 완료:", id);
   }, []);
 
   return { rows, conn, save, remove, upsert, lists, addOption };
