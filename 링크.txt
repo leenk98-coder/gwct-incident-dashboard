@@ -1,0 +1,13 @@
+GWCT 사고·클레임 관리 앱 - 공식 링크
+
+🔗 https://claude.ai/artifact/XoT6A4nFkMfkjDVzj1uaN1
+
+✨ 특징:
+- 인터넷 연결 없이도 사용 가능
+- 온라인에서도 오프라인에서도 동작
+- 모든 기능 동일
+
+📅 업데이트: 2026-09-18
+- Google Fonts CDN 제거
+- Tailwind CSS CDN 제거
+- 시스템 폰트로 변경

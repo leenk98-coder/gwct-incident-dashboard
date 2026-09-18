@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>결재용 보고서 - 사고보고</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', '맑은 고딕', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            color: #333;
+            line-height: 1.3;
+        }
+
+        .sheet {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            margin: 20px auto;
+            padding: 18mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            page-break-after: always;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 결재란 */
+        .approval-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 12mm;
+            border-collapse: collapse;
+        }
+
+        .approval-section tr {
+            height: 16mm;
+        }
+
+        .approval-section td {
+            border: 1px solid #333;
+            padding: 2mm 3mm;
+            text-align: center;
+            font-size: 10px;
+            vertical-align: middle;
+        }
+
+        .approval-section .role {
+            font-weight: bold;
+            width: 18%;
+            background: #e8e8e8;
+            font-size: 9px;
+        }
+
+        /* 기본정보 */
+        .info-section {
+            width: 100%;
+            margin-bottom: 10mm;
+            border-collapse: collapse;
+        }
+
+        .info-section tr {
+            height: 7mm;
+        }
+
+        .info-section td {
+            border: 1px solid #bbb;
+            padding: 2mm 3mm;
+            font-size: 9px;
+            vertical-align: middle;
+        }
+
+        .info-section .label {
+            background: #e8e8e8;
+            font-weight: bold;
+            width: 12%;
+        }
+
+        .info-section .value {
+            width: 20%;
+        }
+
+        /* 섹션 제목 */
+        .section-title {
+            font-weight: bold;
+            font-size: 10px;
+            margin-top: 6mm;
+            margin-bottom: 3mm;
+            padding-bottom: 1mm;
+            border-bottom: 1px solid #333;
+            background: #f0f0f0;
+            padding-left: 3mm;
+            padding-top: 1mm;
+        }
+
+        /* 내용 영역 */
+        .content-box {
+            border: 1px solid #999;
+            padding: 3mm;
+            margin-bottom: 5mm;
+            min-height: auto;
+            font-size: 9px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* 금액 표 */
+        .amount-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5mm;
+            font-size: 9px;
+        }
+
+        .amount-table td {
+            border: 1px solid #bbb;
+            padding: 2mm 3mm;
+            height: 6mm;
+            vertical-align: middle;
+        }
+
+        .amount-table .label {
+            background: #e8e8e8;
+            width: 30%;
+            font-weight: bold;
+        }
+
+        .amount-table .value {
+            text-align: right;
+            width: 70%;
+        }
+
+        /* 인쇄 스타일 */
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+            .sheet {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+                break-inside: avoid;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        .no-print {
+            display: block;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .page-number {
+            font-size: 8px;
+            color: #999;
+            text-align: center;
+            margin-top: 4mm;
+        }
+
+        .signature-section {
+            margin-top: 6mm;
+            font-size: 8px;
+            line-height: 2;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <strong>📄 인쇄 가이드:</strong> Ctrl+P (또는 Cmd+P) → "배경 그래픽 포함" 체크 → A4 용지 → 여백: 0mm → "PDF로 저장" 또는 인쇄
+    </div>
+
+    <!-- ===== 페이지 1: 결재 + 기본정보 + 핵심내용 ===== -->
+    <div class="sheet">
+        <table class="approval-section">
+            <tr>
+                <td colspan="4" style="font-weight: bold; font-size: 11px; background: #e8e8e8;">사고사항(종결)보고</td>
+            </tr>
+            <tr>
+                <td class="role">담당</td>
+                <td></td>
+                <td class="role">팀장</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td class="role">본부장</td>
+                <td></td>
+                <td class="role">대표이사</td>
+                <td></td>
+            </tr>
+        </table>
+
+        <table class="info-section">
+            <tr>
+                <td class="label">사고번호</td>
+                <td class="value">GWCT-2024-0523</td>
+                <td class="label">도급사</td>
+                <td class="value">선일해운</td>
+                <td class="label">보고일</td>
+                <td class="value">2024.11.29</td>
+            </tr>
+            <tr>
+                <td class="label">발생일시</td>
+                <td class="value">2024-11-29 04:40</td>
+                <td class="label">발생장소</td>
+                <td colspan="3" class="value">광양항 북항 C-5 구간</td>
+            </tr>
+            <tr>
+                <td class="label">사고구분</td>
+                <td class="value">근로자(외부)</td>
+                <td class="label">사고형태</td>
+                <td colspan="3" class="value">협착/끼임</td>
+            </tr>
+        </table>
+
+        <div class="section-title">1. 사고 개요</div>
+        <div class="content-box">광양항 북항 C-5 호이스트 작업 중 협력사 근로자(최모, 70세)가 미해제 트위스트락으로 인해 트레일러와 함께 상승. 약 2m 상승 후 감지되어 하강. 즉시 119 신고, 병원 이송. 현재 경미 상처만 확인.</div>
+
+        <div class="section-title">2. 피해사항</div>
+        <div class="content-box">● 부상자: 1명 (협력사 근로자)
+● 사망자: 0명
+● 재산피해: 경미
+● 공정영향: 2시간 (현장 정지 및 안전 점검)</div>
+
+        <div class="section-title">3. 금액 요약</div>
+        <table class="amount-table">
+            <tr>
+                <td class="label">부상자 치료비</td>
+                <td class="value">1,250,000원</td>
+            </tr>
+            <tr>
+                <td class="label">기타 비용</td>
+                <td class="value">750,000원</td>
+            </tr>
+            <tr>
+                <td class="label" style="background: #d0d0d0; font-weight: bold;">합계</td>
+                <td class="value" style="background: #ffffcc; font-weight: bold;">2,000,000원</td>
+            </tr>
+        </table>
+
+        <div class="page-number">- 1 / 2 -</div>
+    </div>
+
+    <!-- ===== 페이지 2: 상세 내용 ===== -->
+    <div class="sheet">
+        <div style="text-align: center; font-weight: bold; font-size: 10px; margin-bottom: 6mm; padding-bottom: 2mm; border-bottom: 1px solid #999;">
+            사고사항(종결)보고 - 상세내용
+        </div>
+
+        <div class="section-title">4. 원인분석</div>
+        <div class="content-box">【직접원인】
+- 트위스트락 4개 중 3개만 해제 (1개 미해제)
+- 크레인 인상 전 최종 확인 누락
+- 야간 작업으로 인한 가시성 저하
+
+【근본원인】
+- 작업 체크리스트 미준수
+- 협력사 근로자 교육 부족
+- 감시 인력 부족 (야간 1명)
+- 안전관리자 부재</div>
+
+        <div class="section-title">5. 조치현황</div>
+        <div class="content-box">【즉시조치】(2024-11-30)
+✓ 해당 구간 작업 중단 (안전 조사)
+✓ 트위스트락 전수 점검 (완료)
+✓ 근로자 안전 재교육 (12-06)
+
+【개선조치】(진행 중)
+• 안전 점검 체계 3단계로 강화
+• 야간 작업 조명 추가 설치
+• 협력사 근로자 월 1회 의무 교육
+• 감시 인력 2배 배치 (야간 2명)</div>
+
+        <div class="section-title">6. 예방관리 계획</div>
+        <div class="content-box">【단기 (3개월)】
+- 크레인 운영 매뉴얼 개정 (12-15)
+- 전 직원 안전 의식 강화 교육 (매월)
+- 안전관리자 배치 및 순회 감시 확대
+
+【중기 (1년)】
+- 트위스트락 자동 감지 시스템 도입 검토
+- 안전 KPI 관리 체계 개선
+- 협력사 정기 평가 (분기별)</div>
+
+        <div class="section-title">7. 기타</div>
+        <div class="content-box">【보험처리】보험사: OO손해보험 / 청구액: 2,000,000원
+
+【합의상황】협의 중 (2024-12-15 예정)
+
+【첨부】현장 사진(6매), CCTV 영상, 안전교육증, 의료기록</div>
+
+        <div class="signature-section">
+            <div>보고자: _______________________</div>
+            <div>작성일: 2024년 12월 10일</div>
+        </div>
+
+        <div class="page-number">- 2 / 2 -</div>
+    </div>
+
+</body>
+</html>
