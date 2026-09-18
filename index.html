@@ -1,6 +1,31 @@
 <title>GWCT 사고·클레임 관리</title>
-<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: { extend: {
+    colors: {
+      border:"hsl(var(--border))", input:"hsl(var(--input))", ring:"hsl(var(--ring))",
+      background:"hsl(var(--background))", foreground:"hsl(var(--foreground))",
+      primary:{DEFAULT:"hsl(var(--primary))", foreground:"hsl(var(--primary-foreground))"},
+      secondary:{DEFAULT:"hsl(var(--secondary))", foreground:"hsl(var(--secondary-foreground))"},
+      muted:{DEFAULT:"hsl(var(--muted))", foreground:"hsl(var(--muted-foreground))"},
+      accent:{DEFAULT:"hsl(var(--accent))", foreground:"hsl(var(--accent-foreground))"},
+      card:{DEFAULT:"hsl(var(--card))", foreground:"hsl(var(--card-foreground))"},
+      destructive:{DEFAULT:"hsl(var(--destructive))", foreground:"hsl(var(--destructive-foreground))"},
+      ok:{DEFAULT:"hsl(var(--ok))", foreground:"hsl(var(--ok-foreground))"},
+      warn:{DEFAULT:"hsl(var(--warn))", foreground:"hsl(var(--warn-foreground))"},
+    },
+    fontFamily:{
+      sans:['"IBM Plex Sans KR"','system-ui','-apple-system','"Segoe UI"','sans-serif'],
+      mono:['"IBM Plex Mono"','ui-monospace','monospace'],
+    },
+    borderRadius:{ sm:"0.25rem", DEFAULT:"0.375rem", md:"0.375rem", lg:"0.5rem", xl:"0.75rem" },
+  }}
+};
+</script>
 <style>
 :root{
   color-scheme: light;
@@ -60,7 +85,7 @@
   --ok-bg:#0f2412; --warn-bg:#2a2113; --crit-bg:#2b1616;
 }
 html,body{background:hsl(var(--background)); color:hsl(var(--foreground))}
-body{font-family:system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; font-size:14px}
+body{font-family:"IBM Plex Sans KR", system-ui, sans-serif; font-size:14px}
 .tnum{font-variant-numeric:tabular-nums}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:hsl(var(--border));border-radius:5px;border:2px solid transparent;background-clip:content-box}
