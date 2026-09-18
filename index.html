@@ -1,84 +1,316 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>결재용 보고서 - 사고보고</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-<title>GWCT 사고·클레임 관리</title>
-<style>
-:root{
-  color-scheme: light;
-  --background:205 25% 94%;   --foreground:207 44% 9%;
-  --card:0 0% 100%;           --card-foreground:207 44% 9%;
-  --muted:205 25% 95%;        --muted-foreground:207 12% 44%;
-  --secondary:205 22% 92%;    --secondary-foreground:207 40% 14%;
-  --accent:207 55% 93%;       --accent-foreground:207 79% 24%;
-  --border:207 18% 86%;       --input:207 18% 84%;
-  --primary:207 79% 28%;      --primary-foreground:0 0% 100%;
-  --ring:207 79% 40%;
-  --destructive:0 62% 53%;    --destructive-foreground:0 0% 100%;
-  --ok:120 86% 34%;           --ok-foreground:0 0% 100%;
-  --warn:41 96% 54%;          --warn-foreground:38 100% 16%;
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
-  --ramp-0:#eef3f8; --ramp-1:#cde2fb; --ramp-2:#9ec5f4; --ramp-3:#6da7ec; --ramp-4:#2a78d6; --ramp-5:#184f95;
-  --grid:#e2e8ee;
-  --ok-ink:#046b04; --warn-ink:#7d5300; --crit-ink:#a72f2f;
-  --ok-bg:#e6f5e6; --warn-bg:#fcf1da; --crit-bg:#fae7e7;
-}
-@media (prefers-color-scheme: dark){ :root:where(:not([data-theme="light"])){
-  color-scheme: dark;
-  --background:205 30% 6%;    --foreground:205 25% 95%;
-  --card:208 26% 10%;         --card-foreground:205 25% 95%;
-  --muted:208 22% 15%;        --muted-foreground:205 13% 62%;
-  --secondary:208 22% 17%;    --secondary-foreground:205 25% 92%;
-  --accent:207 40% 18%;       --accent-foreground:205 70% 78%;
-  --border:208 20% 20%;       --input:208 20% 24%;
-  --primary:205 63% 58%;      --primary-foreground:205 45% 8%;
-  --ring:205 63% 58%;
-  --destructive:0 62% 56%;    --destructive-foreground:0 0% 100%;
-  --ok:120 60% 42%;           --ok-foreground:0 0% 100%;
-  --warn:41 80% 52%;          --warn-foreground:38 100% 12%;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
-  --ramp-0:#151d25; --ramp-1:#16293a; --ramp-2:#173d63; --ramp-3:#1c5cab; --ramp-4:#2a78d6; --ramp-5:#5598e7;
-  --grid:#222d37;
-  --ok-ink:#57c957; --warn-ink:#e0ab3a; --crit-ink:#e87b7b;
-  --ok-bg:#0f2412; --warn-bg:#2a2113; --crit-bg:#2b1616;
-}}
-:root[data-theme="dark"]{
-  color-scheme: dark;
-  --background:205 30% 6%;    --foreground:205 25% 95%;
-  --card:208 26% 10%;         --card-foreground:205 25% 95%;
-  --muted:208 22% 15%;        --muted-foreground:205 13% 62%;
-  --secondary:208 22% 17%;    --secondary-foreground:205 25% 92%;
-  --accent:207 40% 18%;       --accent-foreground:205 70% 78%;
-  --border:208 20% 20%;       --input:208 20% 24%;
-  --primary:205 63% 58%;      --primary-foreground:205 45% 8%;
-  --ring:205 63% 58%;
-  --destructive:0 62% 56%;    --destructive-foreground:0 0% 100%;
-  --ok:120 60% 42%;           --ok-foreground:0 0% 100%;
-  --warn:41 80% 52%;          --warn-foreground:38 100% 12%;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
-  --ramp-0:#151d25; --ramp-1:#16293a; --ramp-2:#173d63; --ramp-3:#1c5cab; --ramp-4:#2a78d6; --ramp-5:#5598e7;
-  --grid:#222d37;
-  --ok-ink:#57c957; --warn-ink:#e0ab3a; --crit-ink:#e87b7b;
-  --ok-bg:#0f2412; --warn-bg:#2a2113; --crit-bg:#2b1616;
-}
-html,body{background:hsl(var(--background)); color:hsl(var(--foreground))}
-body{font-family:system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif; font-size:14px}
-.tnum{font-variant-numeric:tabular-nums}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:hsl(var(--border));border-radius:5px;border:2px solid transparent;background-clip:content-box}
-.boot{max-width:1280px;margin:0 auto;padding:40px 20px}
-.boot .sk{background:hsl(var(--muted));border-radius:8px;animation:pulse 1.6s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-@media (prefers-reduced-motion:reduce){ .boot .sk{animation:none} *{transition:none!important} }
-</style>
+        body {
+            font-family: 'Arial', '맑은 고딕', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            color: #333;
+            line-height: 1.3;
+        }
 
-<div class="boot">
-  <h1>GWCT 사고·클레임 관리 앱</h1>
-  <p>이 파일은 https://claude.ai 의 Artifact에서 발행된 대시보드입니다.</p>
-  <p>원본 링크: <a href="https://claude.ai/code/artifact/f96e7379-c112-4b07-9611-67569b04a906" target="_blank">https://claude.ai/code/artifact/f96e7379-c112-4b07-9611-67569b04a906</a></p>
-  <p>⚠️ 주의: 이 HTML 파일은 온라인 리소스(Tailwind CSS CDN, Google Fonts 등)에 의존하므로, 인터넷 연결이 필요합니다.</p>
-  <p>오프라인 사용을 위해서는 원본 artifact 링크에서 직접 접속하시기 바랍니다.</p>
-  <hr style="margin:20px 0">
-  <p><strong>저장 일시:</strong> 2026-09-18</p>
-  <p><strong>저장 위치:</strong> C:\Users\GWCT\Desktop\클로드_안전\사고현황관리\관리앱\index.html</p>
-</div>
+        .sheet {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            margin: 20px auto;
+            padding: 18mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            page-break-after: always;
+            overflow: hidden;
+            position: relative;
+        }
 
-</body></html>
+        /* 결재란 */
+        .approval-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 12mm;
+            border-collapse: collapse;
+        }
+
+        .approval-section tr {
+            height: 16mm;
+        }
+
+        .approval-section td {
+            border: 1px solid #333;
+            padding: 2mm 3mm;
+            text-align: center;
+            font-size: 10px;
+            vertical-align: middle;
+        }
+
+        .approval-section .role {
+            font-weight: bold;
+            width: 18%;
+            background: #e8e8e8;
+            font-size: 9px;
+        }
+
+        /* 기본정보 */
+        .info-section {
+            width: 100%;
+            margin-bottom: 10mm;
+            border-collapse: collapse;
+        }
+
+        .info-section tr {
+            height: 7mm;
+        }
+
+        .info-section td {
+            border: 1px solid #bbb;
+            padding: 2mm 3mm;
+            font-size: 9px;
+            vertical-align: middle;
+        }
+
+        .info-section .label {
+            background: #e8e8e8;
+            font-weight: bold;
+            width: 12%;
+        }
+
+        .info-section .value {
+            width: 20%;
+        }
+
+        /* 섹션 제목 */
+        .section-title {
+            font-weight: bold;
+            font-size: 10px;
+            margin-top: 6mm;
+            margin-bottom: 3mm;
+            padding-bottom: 1mm;
+            border-bottom: 1px solid #333;
+            background: #f0f0f0;
+            padding-left: 3mm;
+            padding-top: 1mm;
+        }
+
+        /* 내용 영역 */
+        .content-box {
+            border: 1px solid #999;
+            padding: 3mm;
+            margin-bottom: 5mm;
+            min-height: auto;
+            font-size: 9px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* 금액 표 */
+        .amount-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5mm;
+            font-size: 9px;
+        }
+
+        .amount-table td {
+            border: 1px solid #bbb;
+            padding: 2mm 3mm;
+            height: 6mm;
+            vertical-align: middle;
+        }
+
+        .amount-table .label {
+            background: #e8e8e8;
+            width: 30%;
+            font-weight: bold;
+        }
+
+        .amount-table .value {
+            text-align: right;
+            width: 70%;
+        }
+
+        /* 인쇄 스타일 */
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+            .sheet {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+                break-inside: avoid;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        .no-print {
+            display: block;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .page-number {
+            font-size: 8px;
+            color: #999;
+            text-align: center;
+            margin-top: 4mm;
+        }
+
+        .signature-section {
+            margin-top: 6mm;
+            font-size: 8px;
+            line-height: 2;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <strong>📄 인쇄 가이드:</strong> Ctrl+P (또는 Cmd+P) → "배경 그래픽 포함" 체크 → A4 용지 → 여백: 0mm → "PDF로 저장" 또는 인쇄
+    </div>
+
+    <!-- ===== 페이지 1: 결재 + 기본정보 + 핵심내용 ===== -->
+    <div class="sheet">
+        <table class="approval-section">
+            <tr>
+                <td colspan="4" style="font-weight: bold; font-size: 11px; background: #e8e8e8;">사고사항(종결)보고</td>
+            </tr>
+            <tr>
+                <td class="role">담당</td>
+                <td></td>
+                <td class="role">팀장</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td class="role">본부장</td>
+                <td></td>
+                <td class="role">대표이사</td>
+                <td></td>
+            </tr>
+        </table>
+
+        <table class="info-section">
+            <tr>
+                <td class="label">사고번호</td>
+                <td class="value">GWCT-2024-0523</td>
+                <td class="label">도급사</td>
+                <td class="value">선일해운</td>
+                <td class="label">보고일</td>
+                <td class="value">2024.11.29</td>
+            </tr>
+            <tr>
+                <td class="label">발생일시</td>
+                <td class="value">2024-11-29 04:40</td>
+                <td class="label">발생장소</td>
+                <td colspan="3" class="value">광양항 북항 C-5 구간</td>
+            </tr>
+            <tr>
+                <td class="label">사고구분</td>
+                <td class="value">근로자(외부)</td>
+                <td class="label">사고형태</td>
+                <td colspan="3" class="value">협착/끼임</td>
+            </tr>
+        </table>
+
+        <div class="section-title">1. 사고 개요</div>
+        <div class="content-box">광양항 북항 C-5 호이스트 작업 중 협력사 근로자(최모, 70세)가 미해제 트위스트락으로 인해 트레일러와 함께 상승. 약 2m 상승 후 감지되어 하강. 즉시 119 신고, 병원 이송. 현재 경미 상처만 확인.</div>
+
+        <div class="section-title">2. 피해사항</div>
+        <div class="content-box">● 부상자: 1명 (협력사 근로자)
+● 사망자: 0명
+● 재산피해: 경미
+● 공정영향: 2시간 (현장 정지 및 안전 점검)</div>
+
+        <div class="section-title">3. 금액 요약</div>
+        <table class="amount-table">
+            <tr>
+                <td class="label">부상자 치료비</td>
+                <td class="value">1,250,000원</td>
+            </tr>
+            <tr>
+                <td class="label">기타 비용</td>
+                <td class="value">750,000원</td>
+            </tr>
+            <tr>
+                <td class="label" style="background: #d0d0d0; font-weight: bold;">합계</td>
+                <td class="value" style="background: #ffffcc; font-weight: bold;">2,000,000원</td>
+            </tr>
+        </table>
+
+        <div class="page-number">- 1 / 2 -</div>
+    </div>
+
+    <!-- ===== 페이지 2: 상세 내용 ===== -->
+    <div class="sheet">
+        <div style="text-align: center; font-weight: bold; font-size: 10px; margin-bottom: 6mm; padding-bottom: 2mm; border-bottom: 1px solid #999;">
+            사고사항(종결)보고 - 상세내용
+        </div>
+
+        <div class="section-title">4. 원인분석</div>
+        <div class="content-box">【직접원인】
+- 트위스트락 4개 중 3개만 해제 (1개 미해제)
+- 크레인 인상 전 최종 확인 누락
+- 야간 작업으로 인한 가시성 저하
+
+【근본원인】
+- 작업 체크리스트 미준수
+- 협력사 근로자 교육 부족
+- 감시 인력 부족 (야간 1명)
+- 안전관리자 부재</div>
+
+        <div class="section-title">5. 조치현황</div>
+        <div class="content-box">【즉시조치】(2024-11-30)
+✓ 해당 구간 작업 중단 (안전 조사)
+✓ 트위스트락 전수 점검 (완료)
+✓ 근로자 안전 재교육 (12-06)
+
+【개선조치】(진행 중)
+• 안전 점검 체계 3단계로 강화
+• 야간 작업 조명 추가 설치
+• 협력사 근로자 월 1회 의무 교육
+• 감시 인력 2배 배치 (야간 2명)</div>
+
+        <div class="section-title">6. 예방관리 계획</div>
+        <div class="content-box">【단기 (3개월)】
+- 크레인 운영 매뉴얼 개정 (12-15)
+- 전 직원 안전 의식 강화 교육 (매월)
+- 안전관리자 배치 및 순회 감시 확대
+
+【중기 (1년)】
+- 트위스트락 자동 감지 시스템 도입 검토
+- 안전 KPI 관리 체계 개선
+- 협력사 정기 평가 (분기별)</div>
+
+        <div class="section-title">7. 기타</div>
+        <div class="content-box">【보험처리】보험사: OO손해보험 / 청구액: 2,000,000원
+
+【합의상황】협의 중 (2024-12-15 예정)
+
+【첨부】현장 사진(6매), CCTV 영상, 안전교육증, 의료기록</div>
+
+        <div class="signature-section">
+            <div>보고자: _______________________</div>
+            <div>작성일: 2024년 12월 10일</div>
+        </div>
+
+        <div class="page-number">- 2 / 2 -</div>
+    </div>
+
+</body>
+</html>
