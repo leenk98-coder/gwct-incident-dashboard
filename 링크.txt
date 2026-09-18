@@ -1,14 +1,24 @@
 GWCT 사고·클레임 관리 앱 - 공식 링크
 
-🔗 https://claude.ai/artifact/XoT6A4nFkMfkjDVzj1uaN1
+🔗 앱      https://claude.ai/artifact/XoT6A4nFkMfkjDVzj1uaN1
+🔗 보고서 시안  https://claude.ai/artifact/MmxErurP5Qvz99Sv1DMq7E
+🔗 웹(공개)   https://leenk98-coder.github.io/gwct-incident-dashboard/
 
-※ 비공개 아티팩트입니다. 다른 사람이 열려면 페이지의 Share 메뉴에서 공유해야 합니다.
+※ 앱·시안은 비공개 아티팩트입니다. 다른 사람이 열려면 페이지의 Share 메뉴에서 공유해야 합니다.
+※ GitHub Pages 는 로그인 없이 누구나 열립니다. 사고 데이터는 브라우저마다 따로 저장되어
+   세 곳이 서로 공유되지 않습니다.
 
-📅 업데이트: 2026-09-18
-- 안내문만 있던 껍데기 페이지를 실제 앱으로 교체 (버전 23)
-- Tailwind CSS CDN 제거 → 앱이 실제 쓰는 클래스만 미리 빌드해 HTML 안에 내장
-- Google Fonts CDN 제거 → 시스템 폰트(맑은 고딕 등)로 표시
-- 남은 외부 의존: React / ReactDOM / SheetJS (cdnjs) — 최초 로딩 시 인터넷 필요
+📅 2026-09-18 작업 내역 (아티팩트 v28)
+- 껍데기 안내문 페이지를 실제 앱으로 교체
+- Tailwind CSS CDN 제거 → 쓰는 클래스만 미리 빌드해 HTML 에 내장
+- Google Fonts CDN 제거 → 시스템 폰트(맑은 고딕 등)
+- CSV·JSON 내보내기 폴백 추가 (아티팩트 밖에서도 저장됨)
+- 첨부 기능 IndexedDB 폴백 추가 (아티팩트 밖에서도 사진 첨부 가능)
+- 사고 등록 단계에서도 사진 첨부 가능
+- 신규 사고 등록 폼: 타이틀 굵게, 피해상황 체크박스 4개, 전체선택 토글
+- 사고보고서 양식 개편: 1·2장 중복 제거, 기본사항 한 표, 사진 전부 인쇄
+
+남은 외부 의존: React / ReactDOM / SheetJS (cdnjs) — 최초 로딩 시 인터넷 필요
 
 🔁 Tailwind CSS 다시 빌드하는 방법 (클래스를 추가/변경했을 때)
   npx tailwindcss@3.4.17 -c tailwind.config.js -i input.css -o out.css --minify
