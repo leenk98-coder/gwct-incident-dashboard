@@ -830,13 +830,13 @@ function ReportSearchPage(p){
                   S("font-mono text-[12px] font-medium", r.no),
                   S("font-mono text-[11.5px] text-muted-foreground", ymd(r.date) + (r.time ? " " + r.time : "")),
                   h(TypeBadge, { t:r.type }), h(StageBadge, { s:r.status })),
-                D("text-[12.5px] text-muted-foreground", r.vendor || "선사 정보 없음"))))))
+                D("text-[12.5px] text-muted-foreground", r.vendor || "선사 정보 없음")))))
         ) : (
           D("mt-2 p-4 rounded-md border border-dashed border-border bg-muted/40",
             D("text-[13px] text-muted-foreground text-center",
               searchInput.trim() ? `"${searchInput}"에 해당하는 사고가 없습니다.` : "사고 데이터가 없습니다."))
         )
-      ))));
+      )));
 }
 
 /* ═══════════ 사고 목록 ═══════════ */
@@ -2155,17 +2155,35 @@ function ReportView(p){
   const cur = Math.max(0, Math.min(ri, rounds.length - 1));
   async function saveFile(){
     if (busy) return;
-    const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
-    if (!dl){ setMsg("이 화면에서는 파일 저장을 쓸 수 없습니다. 브라우저 인쇄를 이용하십시오."); return; }
     const name = String(r.no).replace(/[^\w가-힣-]+/g, "_") + "_" + roundLabel(rounds, cur) + "보고.html";
     setBusy(true); setMsg("사진을 파일에 심는 중…");
-    const srcMap = await inlineImages(r);
-    const nImg = (r.files || []).filter(isImg).length;
-    const embedded = Object.keys(srcMap).length;
     try {
-      const res = await dl.save({ filename:name, data:reportDoc(r, srcMap, cur) });
-      setMsg((res.status === "saved" ? "저장했습니다. 파일을 열어 Ctrl+P로 인쇄하거나 PDF로 저장하십시오." : "전달했습니다.")
-        + (nImg && !embedded ? " (사진은 파일에 담기지 못해 부착란으로 남겼습니다)" : embedded ? " 사진 " + embedded + "장 포함." : ""));
+      const srcMap = await inlineImages(r);
+      const nImg = (r.files || []).filter(isImg).length;
+      const embedded = Object.keys(srcMap).length;
+      const htmlContent = reportDoc(r, srcMap, cur);
+
+      // Claude Code API 사용 시도
+      const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
+      if (dl){
+        const res = await dl.save({ filename:name, data:htmlContent });
+        setMsg((res.status === "saved" ? "저장했습니다. 파일을 열어 Ctrl+P로 인쇄하거나 PDF로 저장하십시오." : "전달했습니다.")
+          + (nImg && !embedded ? " (사진은 파일에 담기지 못해 부착란으로 남겼습니다)" : embedded ? " 사진 " + embedded + "장 포함." : ""));
+      } else {
+        // 대체: 클라이언트 측 다운로드 (순수 브라우저 환경)
+        const blob = new Blob([htmlContent], { type: "text/html; charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setMsg("저장했습니다. 파일을 열어 Ctrl+P로 인쇄하거나 PDF로 저장하십시오."
+          + (nImg && !embedded ? " (사진은 파일에 담기지 못해 부착란으로 남겼습니다)" : embedded ? " 사진 " + embedded + "장 포함." : ""));
+      }
     } catch (e) {
       const c = e && e.code;
       setMsg(c === "declined" ? "저장을 취소했습니다."
