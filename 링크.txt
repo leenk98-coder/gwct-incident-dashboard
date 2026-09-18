@@ -23,3 +23,47 @@ GWCT 사고·클레임 관리 앱 - 공식 링크
 🔁 Tailwind CSS 다시 빌드하는 방법 (클래스를 추가/변경했을 때)
   npx tailwindcss@3.4.17 -c tailwind.config.js -i input.css -o out.css --minify
   → index.html 안의 두 번째 <style> 블록(주석 "Tailwind CSS ..." 바로 아래)을 교체
+
+📅 2026-09-18 추가 수정 (코드 정리)
+- Firebase 스냅샷 수신 시 localRef 를 함께 갱신 → 저장·삭제 때 localStorage 캐시가
+  옛 목록으로 덮어써지던 문제 해결 (데이터 유실 위험 제거)
+- 등록/수정 저장: 뜻 없던 status 삼항 제거, 진행단계가 '종결'이면 종결일자 자동 기입
+- 보고서 검색: 동작하지 않던 [검색] 버튼 제거(입력 즉시 필터), 결과 부제를
+  "선사 정보 없음"(도급업체명을 선사로 잘못 표기) → 소속 · 선사 · 사고요약 으로 수정
+- 내보낸 보고서 HTML 의 Google Fonts CDN 제거 → 오프라인에서도 같은 모양으로 인쇄
+- 화면·보고서 폰트 스택을 시스템 폰트(맑은 고딕/Consolas) 우선으로 정리
+- 쓰이지 않던 Inp() 헬퍼 제거
+※ 원본 백업: _작업기록/index.html.bak-20260918 · 패치본: _작업기록/patch_20260918.py
+
+📅 2026-09-19 로컬 모드 안내문 수정
+- "저장소에 연결되지 않았습니다 / 새로고침하면 사라집니다" → 사실과 달라 수정
+  (로컬 모드에서도 localStorage 에 저장되므로 새로고침해도 유지됨)
+- 새 문구: "이 브라우저에만 저장됩니다" + 공유 불가·사이트데이터 삭제 시 소실 안내
+  + JSON 내보내기로 백업 권고
+- 아이콘 triangle-alert → circle-alert
+※ 수정 직전 백업: _작업기록/index.html.bak-20260919 · 패치본: _작업기록/patch2_20260919.py
+
+📅 2026-09-19 상단 탭 건수 시인성 개선
+- 사고 목록 / 전체·GWCT·도급사 옆 건수: 10.5px + opacity 75% → 알약(pill) 배지로 변경
+  · 선택된 탭  : 흰색 반투명 바탕 + 흰 글씨
+  · 선택 안된 탭: accent 바탕 + accent-foreground 글씨 (라이트/다크 모두 대비 확보)
+  · 크기 11.5px, 굵기 semibold, opacity 제거
+- Tailwind 재빌드 불필요 — 이미 빌드된 클래스만 쓰고 색은 CSS 변수 inline style 로 지정
+※ 수정 직전 백업: _작업기록/index.html.bak-20260919b · 패치본: _작업기록/patch3_20260919.py
+
+📅 2026-09-19 회차 날짜 시인성 개선 (상단 탭 건수와 동일 취지)
+- 보고서 화면 회차 버튼 날짜      : 10.5px + opacity 70% → 11.5px, opacity 제거
+- 등록/수정 폼 회차 버튼 날짜     : 동일
+- 상세 드로워 '보고 회차' 배지 날짜: opacity 70% → 11.5px, opacity 제거
+  · 색은 버튼/배지가 정한 글자색을 그대로 물려받아 선택·비선택 모두 대비 확보
+  · 앱 코드에서 opacity-70 / opacity-75 로 흐려둔 곳은 이제 남아 있지 않음
+※ 수정 직전 백업: _작업기록/index.html.bak-20260919c · 패치본: _작업기록/patch4_20260919.py
+
+📅 2026-09-19 아티팩트 반영 완료 (Version 29)
+- https://claude.ai/artifact/XoT6A4nFkMfkjDVzj1uaN1 에 같은 URL 로 덮어쓰기 발행
+- 발행 전 대조: 올라가 있던 v28 원문 == 패치 전 로컬 백업 (바이트 동일)
+  → v28 이후 아티팩트에서 직접 수정된 내용 없음을 확인하고 발행
+- capabilities(assets · db · downloads) 이전 버전에서 그대로 승계 → 사고 데이터·첨부 유지
+- contract 0.2.44 유지 (런타임 버전 변경 없음)
+- 확정본 사본: _작업기록/index.html.v29-아티팩트반영본-20260919
+※ GitHub Pages(leenk98-coder/gwct-incident-dashboard) 는 아직 미반영
