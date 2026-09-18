@@ -1720,24 +1720,104 @@ function browserSave(name, data, mime){
 }
 
 /* ═══════════ 첨부 파일 (claude assets) ═══════════ */
+/* ── 첨부 보관소 ──────────────────────────────────────────────
+   Artifact 로 열면 서버(assets API)에 올라가 모두가 함께 본다.
+   GitHub Pages·로컬 파일처럼 그 API 가 없는 곳에서는 IndexedDB 에
+   담아 이 브라우저 안에서만 쓴다.                              */
+const IDB_NAME = "gwct_assets", IDB_STORE = "files";
+function idbOpen(){
+  return new Promise((ok, no) => {
+    const rq = indexedDB.open(IDB_NAME, 1);
+    rq.onupgradeneeded = () => {
+      const db = rq.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE, { keyPath:"id" });
+    };
+    rq.onsuccess = () => ok(rq.result);
+    rq.onerror = () => no(rq.error);
+  });
+}
+function idbTx(mode, fn){
+  return idbOpen().then(db => new Promise((ok, no) => {
+    const tx = db.transaction(IDB_STORE, mode);
+    const rq = fn(tx.objectStore(IDB_STORE));
+    tx.oncomplete = () => { db.close(); ok(rq ? rq.result : undefined); };
+    tx.onerror = () => { db.close(); no(tx.error); };
+    tx.onabort = () => { db.close(); no(tx.error); };
+  }));
+}
+const objUrls = {};   /* id → objectURL 캐시 */
+const idbAssets = {
+  local: true,
+  async upload(file){
+    const id = "loc-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    try {
+      /* Blob 을 그대로 넣는 대신 ArrayBuffer 로 풀어서 저장 — 브라우저 구현 차이를 안 탄다 */
+      const buf = await file.arrayBuffer();
+      await idbTx("readwrite", st => st.put({ id, name:file.name, type:file.type, size:file.size, buf }));
+    } catch (e){
+      const err = new Error("IndexedDB 저장 실패");
+      err.code = (e && e.name === "QuotaExceededError") ? "quota_exceeded" : "idb_error";
+      throw err;
+    }
+    return { id, contentType:file.type, sizeBytes:file.size };
+  },
+  async delete(id){
+    await idbTx("readwrite", st => st.delete(id));
+    if (objUrls[id]){ URL.revokeObjectURL(objUrls[id]); delete objUrls[id]; }
+  },
+  async blob(id){
+    const rec = await idbTx("readonly", st => st.get(id));
+    if (!rec) return null;
+    if (rec.buf) return new Blob([rec.buf], { type: rec.type || "application/octet-stream" });
+    return rec.blob || null;   /* 예전 형식(Blob 직접 저장)도 계속 읽는다 */
+  },
+};
+const hasIdb = () => { try { return typeof indexedDB !== "undefined" && !!indexedDB; } catch (e){ return false; } };
+
 function useAssets(){
   const [api, setApi] = useState(undefined);
   useEffect(() => {
     let live = true;
     (async () => {
-      const a = window.claude && window.claude.use ? await window.claude.use("assets") : null;
-      if (live) setApi(a);
+      let a = null;
+      try { a = window.claude && window.claude.use ? await window.claude.use("assets") : null; } catch (e){}
+      if (live) setApi(a || (hasIdb() ? idbAssets : null));
     })();
     return () => { live = false; };
   }, []);
   return api;
 }
 const blobSrc = f => (f && f.id ? "/_blob/" + f.id : "");
+
+/* 로컬 모드에서 첨부를 화면에 띄우려면 objectURL 을 먼저 만들어야 한다 */
+function useFileUrls(files, assets){
+  const [map, setMap] = useState({});
+  const key = (files || []).map(f => f.id).join(",");
+  useEffect(() => {
+    if (!assets || !assets.local) return;
+    let live = true;
+    (async () => {
+      const next = {};
+      for (const f of (files || [])){
+        if (objUrls[f.id]){ next[f.id] = objUrls[f.id]; continue; }
+        try {
+          const b = await assets.blob(f.id);
+          if (b) next[f.id] = objUrls[f.id] = URL.createObjectURL(b);
+        } catch (e){}
+      }
+      if (live) setMap(next);
+    })();
+    return () => { live = false; };
+  }, [key, assets]);
+  return map;
+}
 const isImg = f => /^image\//.test((f && f.type) || "");
 
 function Attach(p){
   const assets = useAssets();
   const files = p.rec.files || [];
+  const urls = useFileUrls(files, assets);
+  const srcOf = f => (assets && assets.local ? (urls[f.id] || "") : blobSrc(f));
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
 
@@ -1775,6 +1855,8 @@ function Attach(p){
     D("flex items-center gap-2 mb-2.5",
       D("font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground", "현장 사진 · 첨부"),
       files.length ? S("font-mono text-[10.5px] text-muted-foreground", files.length + "개") : null,
+      assets && assets.local ? h(Badge, { className:"border-border bg-muted text-muted-foreground" },
+        "이 브라우저에만 저장") : null,
       assets ? D("ml-auto",
         h("label", { htmlFor:"at-" + p.rec._id,
           className:"inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-input bg-card hover:bg-accent cursor-pointer text-[12.5px] font-medium" },
@@ -1787,16 +1869,18 @@ function Attach(p){
 
     assets === undefined ? D("text-[12.5px] text-muted-foreground", "첨부 기능 확인 중…")
     : assets === null && !files.length ? D("text-[12.5px] text-muted-foreground",
-        "이 화면에서는 첨부를 올릴 수 없습니다(열람 권한). 발행된 페이지에서 편집 권한으로 열면 사용할 수 있습니다.")
+        "이 브라우저에서는 첨부를 쓸 수 없습니다(IndexedDB 사용 불가). 시크릿 모드이거나 사이트 데이터가 차단된 상태일 수 있습니다.")
     : !files.length ? D("text-[12.5px] text-muted-foreground",
         "첨부가 없습니다. 현장 사진을 올리면 사고보고서 사진란에 자동으로 들어갑니다.")
     : D("grid gap-2 grid-cols-2 sm:grid-cols-3",
         files.map(f => D({ key:f.id, className:"relative rounded-md border border-border overflow-hidden bg-muted/40 group" },
-          isImg(f)
-            ? h("a", { href:blobSrc(f), target:"_blank", rel:"noopener", className:"block" },
-                h("img", { src:blobSrc(f), alt:f.name, loading:"lazy",
+          !srcOf(f)
+            ? D("flex items-center justify-center h-[104px] text-[11px] text-muted-foreground", "불러오는 중…")
+            : isImg(f)
+            ? h("a", { href:srcOf(f), target:"_blank", rel:"noopener", className:"block" },
+                h("img", { src:srcOf(f), alt:f.name, loading:"lazy",
                   className:"w-full h-[104px] object-cover bg-card" }))
-            : h("a", { href:blobSrc(f), target:"_blank", rel:"noopener",
+            : h("a", { href:srcOf(f), target:"_blank", rel:"noopener", download:assets && assets.local ? f.name : undefined,
                 className:"flex flex-col items-center justify-center gap-1.5 h-[104px] text-muted-foreground hover:text-foreground" },
                 h(Icon, { n:"file-text", c:"w-6 h-6" }), S("text-[11px] px-2 text-center truncate w-full", f.name)),
           D("px-2 py-1.5 border-t border-border bg-card flex items-center gap-1.5",
@@ -1812,9 +1896,15 @@ async function inlineImages(r){
   const imgs = (r.files || []).filter(isImg).slice(0, 2);
   for (const f of imgs){
     try {
-      const res = await fetch(blobSrc(f));
-      if (!res.ok) continue;
-      const b = await res.blob();
+      let b = null;
+      if (window.claude && window.claude.use){
+        const res = await fetch(blobSrc(f));
+        if (!res.ok) continue;
+        b = await res.blob();
+      } else {
+        b = await idbAssets.blob(f.id);
+      }
+      if (!b) continue;
       map[f.id] = await new Promise((ok, no) => {
         const fr = new FileReader();
         fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(b);
