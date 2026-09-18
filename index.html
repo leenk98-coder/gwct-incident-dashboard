@@ -1900,10 +1900,30 @@ function Attach(p){
               h(Icon, { n:"trash-2", c:"w-3.5 h-3.5" })) : null)))));
 }
 
-/* 보고서 파일 저장용 — 첨부 이미지를 data URI로 인라인 */
+/* 인쇄용으로 사진을 줄인다 — 긴 변 1600px, JPEG. 원본을 그대로 넣으면 파일이 너무 커진다 */
+async function shrinkForPrint(blob){
+  try {
+    const bmp = await createImageBitmap(blob);
+    const long = Math.max(bmp.width, bmp.height);
+    const scale = Math.min(1, 1600 / long);
+    if (scale === 1 && blob.size < 400 * 1024){ if (bmp.close) bmp.close(); return blob; }
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const hh = Math.max(1, Math.round(bmp.height * scale));
+    const cv = document.createElement("canvas");
+    cv.width = w; cv.height = hh;
+    const cx = cv.getContext("2d");
+    cx.fillStyle = "#fff"; cx.fillRect(0, 0, w, hh);
+    cx.drawImage(bmp, 0, 0, w, hh);
+    if (bmp.close) bmp.close();
+    const out = await new Promise(ok => cv.toBlob(b => ok(b), "image/jpeg", 0.82));
+    return out && out.size < blob.size ? out : blob;
+  } catch (e){ return blob; }
+}
+
+/* 보고서 파일 저장용 — 첨부 이미지를 data URI로 인라인 (첨부한 전부) */
 async function inlineImages(r){
   const map = {};
-  const imgs = (r.files || []).filter(isImg).slice(0, 2);
+  const imgs = (r.files || []).filter(isImg);
   for (const f of imgs){
     try {
       let b = null;
@@ -1915,6 +1935,7 @@ async function inlineImages(r){
         b = await idbAssets.blob(f.id);
       }
       if (!b) continue;
+      b = await shrinkForPrint(b);
       map[f.id] = await new Promise((ok, no) => {
         const fr = new FileReader();
         fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(b);
@@ -1967,23 +1988,6 @@ const RPT_CSS = `
   color:#003D8A;background:#eef3fa;letter-spacing:.04em}
 .rpt .st.done{border-color:#116046;color:#116046;background:#eaf4ef}
 
-/* 1면 — 진행 타임라인 */
-.rpt .tl{display:flex;margin:1mm 0 2mm}
-.rpt .tl .i{flex:1;text-align:center;position:relative;padding-top:6mm}
-.rpt .tl .i::before{content:"";position:absolute;left:0;right:50%;top:2.6mm;height:.8mm;background:#cddcec}
-.rpt .tl .i::after{content:"";position:absolute;left:50%;right:0;top:2.6mm;height:.8mm;background:#cddcec}
-.rpt .tl .i:first-child::before,.rpt .tl .i:last-child::after{background:transparent}
-.rpt .tl .i.on::before,.rpt .tl .i.on::after{background:#003D8A}
-.rpt .tl .i.cur::after{background:#cddcec}
-.rpt .tl .dot{position:absolute;left:50%;top:1mm;width:4mm;height:4mm;margin-left:-2mm;border-radius:50%;
-  background:#cddcec;border:.6mm solid #fff;box-shadow:0 0 0 .4mm #cddcec}
-.rpt .tl .i.on .dot{background:#003D8A;box-shadow:0 0 0 .4mm #003D8A}
-.rpt .tl .i.cur .dot{background:#fff;box-shadow:0 0 0 .9mm #003D8A}
-.rpt .tl b{display:block;font-size:9.5pt}
-.rpt .tl small{display:block;font-size:8pt;color:#555;font-family:"IBM Plex Mono",monospace}
-.rpt .tl em{display:block;font-style:normal;font-size:8pt;color:#003D8A;font-weight:600;font-family:"IBM Plex Mono",monospace}
-.rpt .tl .i.future b,.rpt .tl .i.future small{color:#9a9a9a}
-
 /* 1면 — 금액 */
 .rpt .mrow{display:flex;gap:3mm}
 .rpt .mbox{flex:1;border:1px solid #777;padding:2mm 3mm}
@@ -2015,10 +2019,33 @@ const RPT_CSS = `
   font-size:8.5pt;color:#555}
 .rpt .memo{font-size:7.5pt;color:#777;margin-top:2mm;line-height:1.5}
 .rpt .mono{font-family:"IBM Plex Mono",monospace}
+
+/* 피해 구분 체크 요약 */
+.rpt .chks{display:flex;gap:6mm;flex-wrap:wrap;border:1px solid #b8bfc6;padding:2.2mm 3mm;font-size:9.5pt}
+.rpt .chks .chk{color:#8c959d}
+.rpt .chks .chk.on{color:#111;font-weight:700}
+
+/* 머리표 — 한눈에 보는 사고 기본사항 */
+.rpt table.hd th{width:20mm;letter-spacing:.06em}
+.rpt table.hd td{font-size:10pt}
+.rpt table.hd td.mono{font-family:"IBM Plex Mono",monospace;font-weight:600}
+
+/* 증빙 사진 — 첨부한 전부를 2단으로 */
+.rpt .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
+.rpt .pcard{border:1px solid #b8bfc6;background:#fff;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+.rpt .pcard img{display:block;width:100%;height:62mm;object-fit:contain;background:#fff}
+.rpt .pcard .cap{font-size:8pt;color:#555;padding:1mm 2mm;border-top:1px solid #e3e7ea;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rpt .pnone{border:1px dashed #9aa3ab;padding:8mm;text-align:center;color:#8c959d;font-size:9pt;
+  background:repeating-linear-gradient(45deg,#fafbfc,#fafbfc 6px,#f4f6f8 6px,#f4f6f8 12px)}
+
+/* 쪽이 넘어갈 때 제목만 남거나 표가 잘리지 않게 */
+.rpt h2{break-after:avoid;page-break-after:avoid}
+.rpt .sec{break-inside:avoid;page-break-inside:avoid}
+.rpt table.g tr{break-inside:avoid;page-break-inside:avoid}
 @media print{
   @page{size:A4;margin:0}
   .rpt .sheet{width:auto;min-height:auto;padding:12mm 10mm;margin:0}
-  .rpt .sheet + .sheet{break-before:page;page-break-before:always}
   .rpt{font-size:10pt}
   .noprint{display:none!important}
 }`;
@@ -2028,12 +2055,6 @@ function reportRounds(r){
   if (r.rounds && r.rounds.length) return r.rounds;
   return [{ kind: r.status === "종결" ? "종결" : "초기", date: r.closedAt || r.date || "",
     progress:r.progress || "", etc:"", act:"", prev:"", attach:"", release:r.release || "" }];
-}
-function daysBetween(a, b){
-  if (!a || !b) return null;
-  const x = new Date(a), y = new Date(b);
-  if (isNaN(x) || isNaN(y)) return null;
-  return Math.round((y - x) / 86400000);
 }
 const koDate = v => {
   if (!v) return "";
@@ -2072,16 +2093,6 @@ function reportBody(r, srcMap, ridx){
     <tr><td></td><td></td><td></td><td></td></tr>
   </table>`;
 
-  /* 진행 타임라인 */
-  const tl = rounds.map((x, i) => {
-    const cl = i < ri ? "i on" : i === ri ? "i on cur" : "i future";
-    const dd = daysBetween(r.date, x.date);
-    return `<div class="${cl}"><span class="dot"></span><b>${esc(roundLabel(rounds, i))}</b>`
-      + `<small>${esc((x.date || "").slice(5).replace("-", ".") || "—")}</small>`
-      + `<em>${dd == null ? "&nbsp;" : "D+" + dd}</em></div>`;
-  }).join("");
-  const span = daysBetween(r.date, rd.date);
-
   /* 지급주체 막대 */
   const bar = paidTot ? `<div class="bar">`
       + pay.map(x => `<i style="width:${(x.amt / paidTot * 100).toFixed(1)}%;background:${PAY_HEX[x.payer] || "#9DBDE0"}"></i>`).join("")
@@ -2089,22 +2100,33 @@ function reportBody(r, srcMap, ridx){
       + pay.map(x => `<span><u style="background:${PAY_HEX[x.payer] || "#9DBDE0"}"></u>${esc(x.payer)} <b>${won(x.amt)}</b> (${Math.round(x.amt / paidTot * 100)}%)</span>`).join("")
       + `</div>` : "";
 
-  /* 피해 사항 — 대인 / 대물 / 기타 */
+  /* 피해 사항 — 대인 / 대물 / 재산 / 기타 */
+  const HARM_LABEL = { "대인":"인적피해(대인)", "대물":"물적피해(대물)", "재산":"재산피해", "기타":"기타피해" };
+  const harmChips = HARMS.map(k => {
+    const on = ((r.harm || {})[k] || {}).on;
+    return `<span class="chk${on ? " on" : ""}">${on ? "■" : "□"} ${esc(HARM_LABEL[k])}</span>`;
+  }).join("");
   const harmTxt = HARMS.map(k => {
     const v = (r.harm || {})[k] || {};
-    const label = k === "대인" ? "인적피해(대인)" : k === "대물" ? "물적피해(대물)" : "기타피해";
-    if (!v.on){ return k === "기타" ? "" : `○ ${label}\n    ▷ 없음`; }
-    const body = String(v.txt || "").trim() || "해당";
-    return `○ ${label}\n` + body.split("\n").map(l => "    ▷ " + l).join("\n");
+    const body = v.on ? String(v.txt || "").trim() : "";
+    if (!body) return "";
+    return `○ ${HARM_LABEL[k]}\n` + body.split("\n").map(l => "    ▷ " + l).join("\n");
   }).filter(Boolean).join("\n");
 
+  /* 피해 대상과 상세내역 — 금액과 무관하게 항상 보여 준다 */
+  const dmgTable = `<table class="g" style="margin-top:2mm">
+  <tr><th style="width:26mm">피해 대상</th><th style="width:auto;background:#f0f2f4">상 세 내 역</th></tr>
+  ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th><td>${nl(d.desc) || "—"}</td></tr>`).join("")
+    : `<tr><td colspan="2" style="text-align:center;color:#888">기재된 피해내역 없음</td></tr>`}
+</table>`;
+
   const money = `<table class="g">
-  <tr><th style="width:26mm">피해 대상</th><th style="width:auto;background:#f0f2f4">상세내역</th>
-      <th style="width:27mm;background:#f0f2f4">초기 예상액</th><th style="width:27mm;background:#f0f2f4">최종 확정액</th></tr>
-  ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th><td>${nl(d.desc)}</td>`
+  <tr><th style="width:26mm">피해 대상</th><th style="width:auto;background:#f0f2f4">초기 예상액</th>
+      <th style="width:38mm;background:#f0f2f4">최종 확정액</th></tr>
+  ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th>`
       + `<td class="r">${d.cost ? won(d.cost) : "-"}</td><td class="r">${d.fin ? won(d.fin) : "-"}</td></tr>`).join("")
-    : `<tr><td colspan="4" style="text-align:center;color:#888">기재된 피해내역 없음</td></tr>`}
-  <tr class="sum"><th>합 계</th><td></td><td class="r">${won(est)}</td><td class="r">${fin ? won(fin) : "-"}</td></tr>
+    : `<tr><td colspan="3" style="text-align:center;color:#888">기재된 피해내역 없음</td></tr>`}
+  <tr class="sum"><th>합 계</th><td class="r">${won(est)}</td><td class="r">${fin ? won(fin) : "-"}</td></tr>
 </table>`;
 
   const payTable = pay.length ? `<table class="g" style="margin-top:2mm">
@@ -2113,101 +2135,70 @@ function reportBody(r, srcMap, ridx){
   <tr class="sum"><th>합 계</th><td class="r">${won(paidTot)}</td></tr>
 </table>` : "";
 
-  /* ── 2면: 회차별 상세 서식 ─────────────────────── */
-  const hdr = `<table class="g">
-  <tr><th>사고 번호</th><td class="mono" colspan="5">${esc(r.no)}</td></tr>
-  <tr><th>소　　속</th><td>${esc(orgLabel(r))}</td><th style="width:22mm">운 전 자</th><td>${esc(r.who)}</td>
-      <th style="width:22mm">장비 번호</th><td class="mono">${esc(r.equip || r.dept)}</td></tr>
-  <tr><th>사고 일시</th><td class="mono">${esc(r.date)}${r.time ? " " + esc(r.time) : ""}</td>
-      <th>사고 장소</th><td colspan="3">${esc(r.place)}</td></tr>
-  <tr><th>사고 내용</th><td colspan="5">${esc(r.summary || r.type)}</td></tr>
-  <tr><th>사고 원인</th><td colspan="3">${esc(r.cause || "—")}</td><th>귀 책 자</th><td>${esc(r.blame || "—")}</td></tr>
+  /* ── 사고 기본사항 — 대표이사가 한눈에 보는 머리표 ── */
+  const hdr = `<table class="g hd">
+  <tr><th>사고번호</th><td class="mono" colspan="3">${esc(r.no)}</td>
+      <th>진행상태</th><td><span class="st${end ? " done" : ""}">${end ? "종  결" : esc(roundLabel(rounds, ri)) + " 보고"}</span></td></tr>
+  <tr><th>소　　속</th><td>${esc(orgLabel(r))}</td><th>운 전 자</th><td>${esc(r.who || "—")}</td>
+      <th>장비번호</th><td class="mono">${esc(r.equip || r.dept || "—")}</td></tr>
+  <tr><th>사고일시</th><td class="mono">${esc(ymd(r.date))}${r.time ? " " + esc(r.time) : ""}</td>
+      <th>사고장소</th><td colspan="3">${esc(r.place || "—")}</td></tr>
+  <tr><th>사고원인</th><td colspan="3">${esc(r.cause || "—")}</td>
+      <th>귀 책 자</th><td>${esc(r.blame || "—")}</td></tr>
 </table>`;
 
-  let detail = "";
-  if (rd.kind === "초기"){
-    detail = `<h2>1. 사 고 개 요</h2><div class="body">${nl(r.event)}</div>
-<h2>2. 피 해 사 항</h2><div class="body">${nl(harmTxt)}</div>
-<h2>3. 진 행 사 항</h2><div class="body">${nl(rd.progress)}</div>
-<h2>4. 기 타 사 항</h2><div class="body">${nl(rd.etc)}</div>`;
-  } else if (rd.kind === "중간"){
-    detail = `<h2>1. 사 고 개 요</h2><div class="body">${nl(r.event)}</div>
-<h2>2. 피 해 사 항</h2><div class="body">${nl(harmTxt)}</div>
-<h2>3. 사 고 금 액<span>단위: 원</span></h2>${money}
-<h2>4. 진 행 사 항</h2><div class="body">${nl(rd.progress)}</div>
-<h2>5. 기 타 사 항</h2><div class="body">${nl(rd.etc)}</div>`;
-  } else {
-    const etc = (rd.etc || "") + ((rd.release || "").trim() ? (rd.etc ? "\n" : "") + "○ " + rd.release : "");
-    detail = `<h2>1. 사 고 개 요</h2><div class="body">${nl(r.event)}</div>
-<h2>2. 피 해 사 항</h2><div class="body">${nl(harmTxt)}</div>
-<h2>3. 조치사항 및 재발방지대책</h2>
-<div class="body two"><div>가. 조치사항\n${nl(rd.act)}</div><div>나. 재발방지대책\n${nl(rd.prev)}</div></div>
-<h2>4. 사 고 금 액<span>단위: 원</span></h2>${money}${payTable}
-<h2>5. 기 타 사 항</h2><div class="body">${nl(etc)}</div>`;
-  }
-
-  const keyNote = end ? (rd.prev || rd.act || rd.progress) : rd.progress;
-
-  return `<style>${RPT_CSS}</style><div class="rpt"><div class="sheet">
-<div class="top">
-  <div class="ttl"><h1>${esc(title)}</h1>
-    <div class="sub">${esc(r.no)} · ${esc(roundLabel(rounds, ri))} 보고 · 보고일 ${esc(koDate(rd.date))}</div></div>
-  ${sign}
-</div>
-
-<div class="kbar">
-  <div><div class="k">진행 상태</div><div class="v"><span class="st${end ? " done" : ""}">${end ? "종  결" : esc(roundLabel(rounds, ri)) + " 보고 · 진행 중"}</span></div></div>
-  <div><div class="k">사고 일시</div><div class="v mono">${esc(ymd(r.date))}${r.time ? " " + esc(r.time) : ""}</div></div>
-  <div><div class="k">소속 / 운전자</div><div class="v">${esc(orgLabel(r))} · ${esc(r.who || "—")}</div></div>
-  <div><div class="k">장비 / 장소</div><div class="v">${esc(r.equip || r.dept)} · ${esc(r.place || "—")}</div></div>
-</div>
-
-<h2>진 행 경 과<span>${span == null ? "" : "사고 발생 후 " + span + "일"}</span></h2>
-<div class="tl">${tl}</div>
-
-<h2>사 고 내 용<span>${esc(r.type)} · 귀책 ${esc(r.blame || "—")}</span></h2>
-<div class="note">${nl(r.summary || r.event || "—")}
-<span style="color:#555">원인 · ${esc(r.cause || "—")}</span></div>
-
-<h2>사 고 금 액<span>${end && fin ? "확정" : "예상"} 기준</span></h2>
-<div class="mrow">
+  /* 사고 금액 — 총액·자부담을 먼저, 그 아래 내역표 */
+  const moneyBlock = `<div class="mrow">
   <div class="mbox hero"><div class="k">총 사고금액 (${end && fin ? "확정" : "예상"})</div>
     <div class="v">${won(shown)}</div>
     <div class="d">${end && fin ? "예상 " + won(est) + " → " + (diff > 0 ? "+" : "") + won(diff) : "초기 예상 기준"}</div></div>
   <div class="mbox"><div class="k">회사 자부담</div><div class="v">${won(own)}</div>
     <div class="d">총액의 ${shown ? Math.round(own / shown * 100) : 0}%</div></div>
-</div>
-${bar}
+</div>${bar}
+<div style="margin-top:3mm">${money}</div>${payTable}`;
 
-<div class="cols" style="margin-top:4mm">
-  <div>
-    <h2>피 해 내 역</h2>
-    <table class="g">
-      <tr><th style="width:22mm">대상</th><th style="width:auto;background:#f0f2f4">예상액</th><th style="width:24mm;background:#f0f2f4">확정액</th></tr>
-      ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th><td class="r">${d.cost ? won(d.cost) : "-"}</td><td class="r">${d.fin ? won(d.fin) : "-"}</td></tr>`).join("")
-        : `<tr><td colspan="3" style="text-align:center;color:#888">피해내역 없음</td></tr>`}
-      <tr class="sum"><th>합 계</th><td class="r">${won(est)}</td><td class="r">${fin ? won(fin) : "-"}</td></tr>
-    </table>
-  </div>
-  <div>
-    <h2>현 장 사 진</h2>
-    <div class="photos">${photo(0)}${photo(1)}</div>
-    ${imgs.length > 2 ? `<div class="more">※ 첨부 ${imgs.length}장 중 2장만 표시했습니다.</div>` : ""}
-  </div>
-</div>
+  /* 증빙 자료 — 첨부한 사진 전부 */
+  const circ = i => (i < 20 ? String.fromCharCode(0x2460 + i) : "(" + (i + 1) + ")");
+  const etcFiles = (r.files || []).filter(f => !isImg(f));
+  const photosBlock = imgs.length
+    ? `<div class="pgrid">${imgs.map((f, i) =>
+        `<div class="pcard"><img src="${src(f)}" alt="현장 사진 ${i + 1}">
+<div class="cap">현장 사진 ${circ(i)} · ${esc(f.name)}</div></div>`).join("")}</div>`
+      + (etcFiles.length ? `<div class="memo">※ 사진 외 첨부 : ${etcFiles.map(f => esc(f.name)).join(", ")}</div>` : "")
+    : `<div class="pnone">첨부된 현장 사진이 없습니다 — 인쇄 후 사진을 부착하십시오.</div>`;
 
-<h2>${end ? "재 발 방 지 대 책" : "현 재 진 행 상 황"}</h2>
-<div class="note">${nl(keyNote) || "&nbsp;"}</div>
+  /* 본문 순서 — 사고개요 → 피해사항 → (금액) → 진행사항 / 조치·재발방지 → 기타 → 증빙 */
+  const etcTxt = end
+    ? (rd.etc || "") + ((rd.release || "").trim() ? (rd.etc ? "\n" : "") + "○ " + rd.release : "")
+    : (rd.etc || "");
 
-<div class="pgno">1 / 2 — 요약</div>
-</div><div class="sheet">
+  const secs = [];
+  secs.push(["사 고 개 요", `<div class="body">${nl(r.event) || "&nbsp;"}</div>`, ""]);
+  secs.push(["피 해 사 항", `<div class="chks">${harmChips}</div>`
+    + (harmTxt ? `<div class="body" style="min-height:0;margin-top:2mm">${nl(harmTxt)}</div>` : "")
+    + dmgTable, ""]);
+  if (rd.kind !== "초기") secs.push(["사 고 금 액", moneyBlock, "단위: 원"]);
+  if (end) secs.push(["조치사항 및 재발방지대책",
+    `<div class="body two"><div>가. 조치사항
+${nl(rd.act)}</div><div>나. 재발방지대책
+${nl(rd.prev)}</div></div>`, ""]);
+  else secs.push(["진 행 사 항", `<div class="body">${nl(rd.progress) || "&nbsp;"}</div>`, ""]);
+  secs.push(["기 타 사 항", `<div class="body">${nl(etcTxt) || "&nbsp;"}</div>`, ""]);
+  secs.push(["증 빙 자 료", photosBlock, imgs.length ? "현장 사진 " + imgs.length + "장" : ""]);
 
+  const bodyHtml = secs.map((x, i) =>
+    `<h2>${i + 1}. ${x[0]}${x[2] ? `<span>${esc(x[2])}</span>` : ""}</h2>
+${x[1]}`).join("\n");
+
+  return `<style>${RPT_CSS}</style><div class="rpt"><div class="sheet">
 <div class="top">
-  <div class="ttl"><h1>${esc(title)}</h1><div class="sub">상세 · ${esc(r.no)}</div></div>
+  <div class="ttl"><h1>${esc(title)}</h1>
+    <div class="sub">보고일 ${esc(koDate(rd.date))}</div></div>
+  ${sign}
 </div>
-<div style="text-align:right;font-size:9.5pt;margin-bottom:2mm" class="mono">보고일 : ${esc(koDate(rd.date))}</div>
+
 ${hdr}
-${detail}
+${bodyHtml}
 
 <div class="foot">
   <span>작성일 <span class="mono">${new Date().toISOString().slice(0, 10)}</span></span>
@@ -2216,7 +2207,6 @@ ${detail}
 <div class="memo">■ 붙임 : ${esc(rd.attach || "없음")}<br>
 ※ 결재란은 오프라인 서명용 공란이며, 사내 정식 전자결재를 대체하지 않습니다.<br>
 ※ 출처: 사고현황관리 DB — ${esc(r.no)} / 최종 수정 ${esc((r.updatedAt || "").slice(0, 10))}</div>
-<div class="pgno">2 / 2 — 상세</div>
 </div></div>`;
 }
 
