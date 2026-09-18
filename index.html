@@ -78,9 +78,51 @@ body{font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,"Segoe 
 .logo-plate img{display:block;width:150px;max-width:42vw;height:auto}
 .on-navy-ttl{color:#fff}
 .on-navy-sub{color:#B4CAE6}
+
+/* ── 안전·항만 톤 ──────────────────────────────────────────────
+   외부 이미지를 쓰지 않고 SVG 패턴만으로 현장 느낌을 냅니다. */
+body{
+  background-image:
+    radial-gradient(1100px 380px at 50% -140px, rgba(0,61,138,.09), transparent 70%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><g fill='none' stroke='%23003D8A' stroke-opacity='.045' stroke-width='1.2'><rect x='14' y='18' width='38' height='22' rx='2'/><rect x='58' y='18' width='38' height='22' rx='2'/><rect x='36' y='46' width='38' height='22' rx='2'/><path d='M0 96q15 -7 30 0t30 0t30 0t30 0'/><path d='M0 108q15 -7 30 0t30 0t30 0t30 0'/></g></svg>");
+  background-attachment:fixed;
+  background-repeat:no-repeat,repeat;
+}
+/* 헤더 밑 안전 슬로건 띠 */
+.safety-strip{
+  background:linear-gradient(90deg,#062247 0%,#003D8A 55%,#1b5fa8 100%);
+  color:#dce8f7; border-top:1px solid rgba(255,255,255,.12);
+}
+.safety-strip .slogan{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.safety-strip .dot{width:5px;height:5px;border-radius:50%;background:#7fd18a;flex:none;
+  box-shadow:0 0 0 3px rgba(127,209,138,.18)}
+.safety-strip .tape{margin-left:auto;display:inline-block;height:9px;width:120px;border-radius:2px;
+  background:repeating-linear-gradient(45deg,#f2c14e 0 8px,#2b2b2b 8px 16px);opacity:.75;flex:none}
+@media (max-width:640px){ .safety-strip .tape{display:none} }
+/* 빈 상태 — 그냥 "없습니다" 대신 현장 문구를 함께 둡니다 */
+.empty-safe{background:
+  linear-gradient(0deg,hsl(var(--muted)/.5),hsl(var(--muted)/.5)),
+  repeating-linear-gradient(45deg,transparent 0 11px,rgba(0,61,138,.05) 11px 22px)}
+@media print{ body{background-image:none} .safety-strip{display:none} }
+/* 사고목록 → 보고서 화면: 전체 폭이 아니라 본문의 약 2/3 로 보여줍니다 */
+.rpt-view{max-width:860px}
+@media (min-width:1024px){ .rpt-view{max-width:66.6%;min-width:800px} }
+@media (max-width:860px){ .rpt-view{max-width:100%;min-width:0} }
+@media print{ .rpt-view{max-width:none;min-width:0;width:100%} }
 </style>
 <!-- Tailwind CSS: 이 앱이 실제로 쓰는 클래스만 미리 빌드해 내장 (외부 CDN 없음 / 오프라인 동작) -->
 <style>*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:IBM Plex Sans KR,system-ui,-apple-system,Segoe UI,sans-serif;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:IBM Plex Mono,ui-monospace,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width:640px){.container{max-width:640px}}@media (min-width:768px){.container{max-width:768px}}@media (min-width:1024px){.container{max-width:1024px}}@media (min-width:1280px){.container{max-width:1280px}}@media (min-width:1536px){.container{max-width:1536px}}.pointer-events-none{pointer-events:none}.fixed{position:fixed}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0}.bottom-0{bottom:0}.bottom-5{bottom:1.25rem}.left-1\/2{left:50%}.left-2\.5{left:.625rem}.top-0{top:0}.top-1\/2{top:50%}.isolate{isolation:isolate}.z-10{z-index:10}.z-30{z-index:30}.z-40{z-index:40}.z-50{z-index:50}.z-\[60\]{z-index:60}.mx-0\.5{margin-left:.125rem;margin-right:.125rem}.mx-auto{margin-left:auto;margin-right:auto}.mb-0\.5{margin-bottom:.125rem}.mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-2\.5{margin-bottom:.625rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.ml-0\.5{margin-left:.125rem}.ml-1{margin-left:.25rem}.ml-1\.5{margin-left:.375rem}.ml-auto{margin-left:auto}.mr-auto{margin-right:auto}.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-1\.5{margin-top:.375rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-3\.5{margin-top:.875rem}.mt-4{margin-top:1rem}.mt-8{margin-top:2rem}.line-clamp-2{overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.block{display:block}.inline-block{display:inline-block}.flex{display:flex}.inline-flex{display:inline-flex}.table{display:table}.grid{display:grid}.hidden{display:none}.h-11{height:2.75rem}.h-2{height:.5rem}.h-2\.5{height:.625rem}.h-3{height:.75rem}.h-3\.5{height:.875rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-7{height:1.75rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-\[104px\]{height:104px}.h-\[136px\]{height:136px}.h-auto{height:auto}.h-full{height:100%}.max-h-\[210px\]{max-height:210px}.max-h-\[600px\]{max-height:600px}.min-h-\[64px\]{min-height:64px}.min-h-\[76px\]{min-height:76px}.min-h-\[84px\]{min-height:84px}.min-h-\[92px\]{min-height:92px}.min-h-screen{min-height:100vh}.w-1{width:.25rem}.w-11{width:2.75rem}.w-2{width:.5rem}.w-2\.5{width:.625rem}.w-24{width:6rem}.w-3{width:.75rem}.w-3\.5{width:.875rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-7{width:1.75rem}.w-9{width:2.25rem}.w-\[136px\]{width:136px}.w-auto{width:auto}.w-full{width:100%}.w-px{width:1px}.min-w-0{min-width:0}.min-w-\[180px\]{min-width:180px}.min-w-\[200px\]{min-width:200px}.min-w-\[900px\]{min-width:900px}.max-w-\[1280px\]{max-width:1280px}.max-w-\[320px\]{max-width:320px}.max-w-\[620px\]{max-width:620px}.max-w-\[720px\]{max-width:720px}.max-w-\[900px\]{max-width:900px}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.border-collapse{border-collapse:collapse}.-translate-x-1\/2{--tw-translate-x:-50%}.-translate-x-1\/2,.-translate-y-1\/2{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.-translate-y-1\/2{--tw-translate-y:-50%}.cursor-pointer{cursor:pointer}.select-none{-webkit-user-select:none;-moz-user-select:none;user-select:none}.appearance-none{-webkit-appearance:none;-moz-appearance:none;appearance:none}.grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-\[auto_1fr\]{grid-template-columns:auto 1fr}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.place-items-center{place-items:center}.items-start{align-items:flex-start}.items-center{align-items:center}.items-baseline{align-items:baseline}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0\.5{gap:.125rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-3\.5{gap:.875rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}.gap-x-2{-moz-column-gap:.5rem;column-gap:.5rem}.gap-x-4{-moz-column-gap:1rem;column-gap:1rem}.gap-y-1\.5{row-gap:.375rem}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.whitespace-pre-wrap{white-space:pre-wrap}.break-words{overflow-wrap:break-word}.rounded{border-radius:.375rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.rounded-sm{border-radius:.25rem}.rounded-xl{border-radius:.75rem}.rounded-b-xl{border-bottom-right-radius:.75rem;border-bottom-left-radius:.75rem}.rounded-r{border-top-right-radius:.375rem;border-bottom-right-radius:.375rem}.rounded-t-xl{border-top-left-radius:.75rem;border-top-right-radius:.75rem}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-l{border-left-width:1px}.border-l-\[3px\]{border-left-width:3px}.border-t{border-top-width:1px}.border-dashed{border-style:dashed}.border-border{border-color:hsl(var(--border))}.border-border\/40{border-color:hsl(var(--border)/.4)}.border-border\/60{border-color:hsl(var(--border)/.6)}.border-destructive\/40{border-color:hsl(var(--destructive)/.4)}.border-input{border-color:hsl(var(--input))}.border-primary{border-color:hsl(var(--primary))}.border-transparent{border-color:transparent}.border-white\/35{border-color:hsla(0,0%,100%,.35)}.border-white\/40{border-color:hsla(0,0%,100%,.4)}.bg-accent{background-color:hsl(var(--accent))}.bg-accent\/60{background-color:hsl(var(--accent)/.6)}.bg-black\/50{background-color:rgba(0,0,0,.5)}.bg-black\/55{background-color:rgba(0,0,0,.55)}.bg-border{background-color:hsl(var(--border))}.bg-card{background-color:hsl(var(--card))}.bg-card\/80{background-color:hsl(var(--card)/.8)}.bg-card\/95{background-color:hsl(var(--card)/.95)}.bg-destructive{background-color:hsl(var(--destructive))}.bg-destructive\/10{background-color:hsl(var(--destructive)/.1)}.bg-muted{background-color:hsl(var(--muted))}.bg-muted\/30{background-color:hsl(var(--muted)/.3)}.bg-muted\/40{background-color:hsl(var(--muted)/.4)}.bg-ok{background-color:hsl(var(--ok))}.bg-primary{background-color:hsl(var(--primary))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-white\/10{background-color:hsla(0,0%,100%,.1)}.bg-\[right_0\.5rem_center\]{background-position:right .5rem center}.bg-no-repeat{background-repeat:no-repeat}.object-cover{-o-object-fit:cover;object-fit:cover}.p-0\.5{padding:.125rem}.p-2{padding:.5rem}.p-2\.5{padding:.625rem}.p-3{padding:.75rem}.p-4{padding:1rem}.px-1{padding-left:.25rem;padding-right:.25rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-3\.5{padding-left:.875rem;padding-right:.875rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-16{padding-top:4rem;padding-bottom:4rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-3\.5{padding-top:.875rem;padding-bottom:.875rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-5{padding-top:1.25rem;padding-bottom:1.25rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.py-8{padding-top:2rem;padding-bottom:2rem}.pb-3{padding-bottom:.75rem}.pb-4{padding-bottom:1rem}.pb-8{padding-bottom:2rem}.pl-3{padding-left:.75rem}.pl-8{padding-left:2rem}.pr-3{padding-right:.75rem}.pr-8{padding-right:2rem}.pt-0\.5{padding-top:.125rem}.pt-3{padding-top:.75rem}.pt-4{padding-top:1rem}.text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}.align-top{vertical-align:top}.font-mono{font-family:IBM Plex Mono,ui-monospace,monospace}.text-\[10\.5px\]{font-size:10.5px}.text-\[10px\]{font-size:10px}.text-\[11\.5px\]{font-size:11.5px}.text-\[11px\]{font-size:11px}.text-\[12\.5px\]{font-size:12.5px}.text-\[12px\]{font-size:12px}.text-\[13px\]{font-size:13px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[16px\]{font-size:16px}.text-\[17px\]{font-size:17px}.text-\[19px\]{font-size:19px}.text-\[22px\]{font-size:22px}.text-\[26px\]{font-size:26px}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.leading-none{line-height:1}.leading-relaxed{line-height:1.625}.leading-tight{line-height:1.25}.tracking-tight{letter-spacing:-.025em}.tracking-wider{letter-spacing:.05em}.text-\[\#003D8A\]{--tw-text-opacity:1;color:rgb(0 61 138/var(--tw-text-opacity,1))}.text-\[color\:var\(--ok-ink\)\]{color:var(--ok-ink)}.text-\[color\:var\(--warn-ink\)\]{color:var(--warn-ink)}.text-accent-foreground{color:hsl(var(--accent-foreground))}.text-card-foreground{color:hsl(var(--card-foreground))}.text-destructive{color:hsl(var(--destructive))}.text-destructive-foreground{color:hsl(var(--destructive-foreground))}.text-foreground{color:hsl(var(--foreground))}.text-muted-foreground{color:hsl(var(--muted-foreground))}.text-muted-foreground\/50{color:hsl(var(--muted-foreground)/.5)}.text-ok-foreground{color:hsl(var(--ok-foreground))}.text-primary{color:hsl(var(--primary))}.text-primary-foreground{color:hsl(var(--primary-foreground))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.accent-\[hsl\(var\(--primary\)\)\]{accent-color:hsl(var(--primary))}.opacity-70{opacity:.7}.opacity-75{opacity:.75}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgba(0,0,0,.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color)}.shadow-2xl,.shadow-sm{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgba(0,0,0,.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color)}.shadow-xl{--tw-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);--tw-shadow-colored:0 20px 25px -5px var(--tw-shadow-color),0 8px 10px -6px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline{outline-style:solid}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.backdrop-blur{--tw-backdrop-blur:blur(8px)}.backdrop-blur,.backdrop-blur-\[1px\]{-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.backdrop-blur-\[1px\]{--tw-backdrop-blur:blur(1px)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-colors{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.ease-in-out{transition-timing-function:cubic-bezier(.4,0,.2,1)}.placeholder\:text-muted-foreground\/70::-moz-placeholder{color:hsl(var(--muted-foreground)/.7)}.placeholder\:text-muted-foreground\/70::placeholder{color:hsl(var(--muted-foreground)/.7)}.first\:border-0:first-child,.last\:border-0:last-child{border-width:0}.hover\:border-ring:hover{border-color:hsl(var(--ring))}.hover\:bg-accent:hover{background-color:hsl(var(--accent))}.hover\:bg-accent\/40:hover{background-color:hsl(var(--accent)/.4)}.hover\:bg-white\/20:hover{background-color:hsla(0,0%,100%,.2)}.hover\:bg-white\/90:hover{background-color:hsla(0,0%,100%,.9)}.hover\:text-accent-foreground:hover{color:hsl(var(--accent-foreground))}.hover\:text-destructive:hover{color:hsl(var(--destructive))}.hover\:text-foreground:hover{color:hsl(var(--foreground))}.hover\:opacity-90:hover{opacity:.9}.focus-visible\:border-ring:focus-visible{border-color:hsl(var(--ring))}.focus-visible\:bg-accent:focus-visible{background-color:hsl(var(--accent))}.focus-visible\:outline-none:focus-visible{outline:2px solid transparent;outline-offset:2px}.focus-visible\:ring-2:focus-visible{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.focus-visible\:ring-ring:focus-visible{--tw-ring-color:hsl(var(--ring))}.focus-visible\:ring-offset-1:focus-visible{--tw-ring-offset-width:1px}.focus-visible\:ring-offset-background:focus-visible{--tw-ring-offset-color:hsl(var(--background))}.disabled\:pointer-events-none:disabled{pointer-events:none}.disabled\:opacity-50:disabled{opacity:.5}@media (min-width:640px){.sm\:col-span-2{grid-column:span 2/span 2}.sm\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.sm\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.sm\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.sm\:grid-cols-\[140px_1fr\]{grid-template-columns:140px 1fr}.sm\:p-6{padding:1.5rem}.sm\:p-8{padding:2rem}.sm\:px-5{padding-left:1.25rem;padding-right:1.25rem}.sm\:py-5{padding-top:1.25rem;padding-bottom:1.25rem}}@media (min-width:768px){.md\:grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}}@media (min-width:1024px){.lg\:col-span-2{grid-column:span 2/span 2}.lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.lg\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}}</style>
+
+<!-- 추가 유틸리티 — Tailwind 빌드에 없는 클래스만 뒤에서 보탭니다
+     (tailwind 를 다시 빌드하면 이 블록은 지워도 됩니다) -->
+<style>
+.min-h-\[136px\]{min-height:136px}
+.pr-1{padding-right:.25rem}
+.pl-2\.5{padding-left:.625rem}
+@media (min-width:640px){ .sm\:inline{display:inline} }
+.hover\:text-destructive:hover{color:hsl(var(--destructive))}
+</style>
+
 
 <div id="root"><div class="boot">
   <div class="sk" style="height:30px;width:280px;margin-bottom:10px"></div>
@@ -107,6 +149,7 @@ body{font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,"Segoe 
 "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <polyline points=\"12 6 12 12 16 14\" />",
 "container": "<path d=\"M22 7.7c0-.6-.4-1.2-.8-1.5l-6.3-3.9a1.72 1.72 0 0 0-1.7 0l-10.3 6c-.5.2-.9.8-.9 1.4v6.6c0 .5.4 1.2.8 1.5l6.3 3.9a1.72 1.72 0 0 0 1.7 0l10.3-6c.5-.3.9-1 .9-1.5Z\" /> <path d=\"M10 21.9V14L2.1 9.1\" /> <path d=\"m10 14 11.9-6.9\" /> <path d=\"M14 19.8v-8.1\" /> <path d=\"M18 17.5V9.4\" />",
 "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\" /> <polyline points=\"7 10 12 15 17 10\" /> <line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\" />",
+"folder": "<path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\" />",
 "file-spreadsheet": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\" /> <path d=\"M14 2v4a2 2 0 0 0 2 2h4\" /> <path d=\"M8 13h2\" /> <path d=\"M14 13h2\" /> <path d=\"M8 17h2\" /> <path d=\"M14 17h2\" />",
 "file-text": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\" /> <path d=\"M14 2v4a2 2 0 0 0 2 2h4\" /> <path d=\"M10 9H8\" /> <path d=\"M16 13H8\" /> <path d=\"M16 17H8\" />",
 "file-up": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\" /> <path d=\"M14 2v4a2 2 0 0 0 2 2h4\" /> <path d=\"M12 12v6\" /> <path d=\"m15 15-3-3-3 3\" />",
@@ -196,6 +239,20 @@ function optionsOf(base, rows, key, extra){
   return out;
 }
 
+/* ── 현장 안전 문구 — 날짜에 따라 하나씩 내걸립니다 ───────── */
+const SLOGANS = [
+  "안전은 기본, 현장은 준비된 상태",
+  "현장 안전관리 우선",
+  "실수 없는 작업, 사고 없는 항만",
+  "사고 예방은 운영의 시작점",
+  "확인 또 확인, 무사고 교대",
+];
+function sloganOfToday(){
+  const d = new Date();
+  const n = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  return SLOGANS[n % SLOGANS.length];
+}
+
 /* ── 유틸 ────────────────────────────────────────────────────── */
 const won = n => (Number(n) || 0).toLocaleString("ko-KR");
 function amt(n){
@@ -225,6 +282,7 @@ function blankIncident(){
     harm:{ "대인":{on:false,txt:""}, "대물":{on:false,txt:""}, "재산":{on:false,txt:""}, "기타":{on:false,txt:""} },
     line:"", lineContact:"", cargo:"",
     dmg:[], dmgTotal:0, finTotal:0, pay:[], paidTotal:0,
+    insFiled:false, faultPct:"",
     insNo:"", insPaid:0, deductible:0, surveyor:"",
     costDetail:"", progress:"", owner:"", release:"",
     rounds:[blankRound("초기")],
@@ -251,6 +309,9 @@ function withDefaults(r){
   if (!o.cause) o.cause = "";
   if (!o.blame) o.blame = "";
   if (!o.summary) o.summary = "";
+  /* 나중에 추가한 항목 — 예전 레코드에는 없으므로 기본값으로 채웁니다 */
+  if (o.insFiled == null) o.insFiled = !!(o.insNo || o.insPaid);
+  if (o.faultPct == null) o.faultPct = "";
   if (!Array.isArray(o.files)) o.files = [];
   return o;
 }
@@ -279,6 +340,124 @@ function docId(no){
   const tail = s.split(/[-\s]/).pop();
   const yy = (s.match(/(\d{2})-/) || [,"00"])[1];
   return "sub" + yy + "-" + tail;
+}
+
+/* ═══════════ 사고구분 자동 추천 · 경위서 정리 (규칙 기반) ═══════════
+   사고 경위 문장에서 키워드를 찾아 사고구분을 고르고, 경위서 초안을
+   보고서 문체로 다듬습니다. 결과는 모두 사용자가 고쳐 쓸 수 있습니다. */
+
+/* 점수가 가장 높은 구분을 고릅니다. w 는 가중치입니다. */
+const TYPE_RULES = [
+  { type:"인명(산재,공상)", w:3, kw:["부상","골절","염좌","찰과상","열상","타박","화상","전치","병원","이송",
+      "119","응급","산재","공상","사망","실신","추락","협착","끼임","낙상","의식","진단","통원","입원","인명"] },
+  { type:"영업배상(선사,화주)", w:2, kw:["컨테이너","화물","본선","선측","선사","화주","선박","하역","적재","적입",
+      "래싱","트윈","스프레더","콘","damage","카고","CNTR","컨","박스","선적","양하"] },
+  { type:"영업배상(제3자)", w:2, kw:["외부차량","외부 차량","일반차량","방문차량","제3자","제 3자","운송사","트레일러",
+      "화물차","지입","외부인","민원","상대차량","상대 차량","보행자"] },
+  { type:"영업배상(제4자)", w:2, kw:["제4자","제 4자","인접","타사","인근 업체","외부업체"] },
+  { type:"재산", w:2, kw:["터미널","시설물","게이트","펜스","조명","가로등","전주","포장","노면","건물","사무동",
+      "장비","크레인","갠트리","트랜스퍼","리치스태커","야드트랙터","T/C","G/C","Q/C","R/S","Y/T",
+      "파워케이블","케이블","레일","붐","스프레더 손상","자사"] },
+];
+/* 경위 문장을 읽어 사고구분을 추천합니다. 못 고르면 "" 를 돌려줍니다. */
+function suggestType(text, rec){
+  const t = String(text || "");
+  if (t.replace(/\s/g, "").length < 6) return "";
+  const hay = t.toLowerCase();
+  let best = "", bestScore = 0;
+  TYPE_RULES.forEach(rule => {
+    let sc = 0;
+    rule.kw.forEach(k => { if (hay.indexOf(String(k).toLowerCase()) >= 0) sc += rule.w; });
+    if (sc > bestScore){ bestScore = sc; best = rule.type; }
+  });
+  /* 체크된 피해 상황이 있으면 거들어 줍니다 */
+  const harm = (rec && rec.harm) || {};
+  if (harm["대인"] && harm["대인"].on) {
+    if (best !== "인명(산재,공상)" && bestScore < 6) best = "인명(산재,공상)";
+  }
+  return bestScore > 0 ? best : "";
+}
+/* 충돌·접촉 같은 사고 형태를 한 마디로 집어냅니다 */
+const SHAPE_RULES = [
+  { label:"충돌·접촉", kw:["충돌","접촉","추돌","부딪","박음","긁","스침","닿아","충격"] },
+  { label:"낙하·전도", kw:["낙하","떨어","전도","넘어","쓰러","전복","도괴"] },
+  { label:"협착·끼임", kw:["협착","끼임","끼어","말려"] },
+  { label:"추락", kw:["추락","실족","낙상"] },
+  { label:"화재·연기", kw:["화재","연기","발화","불꽃","소화기"] },
+  { label:"누유·누수", kw:["누유","누수","기름","오일","유출"] },
+  { label:"장비 고장", kw:["고장","정지","오작동","단선","단락","트립","이상음"] },
+];
+function suggestShape(text){
+  const hay = String(text || "").toLowerCase();
+  for (const r of SHAPE_RULES){
+    for (const k of r.kw) if (hay.indexOf(k.toLowerCase()) >= 0) return r.label;
+  }
+  return "";
+}
+
+/* ── 경위서 초안 ──────────────────────────────────────────────
+   입력해 둔 항목(일시·장소·장비·작업자·경위)을 엮어 보고서 문장으로 만듭니다. */
+function draftEvent(d){
+  const dt = [];
+  if (d.date) dt.push(String(d.date).replace(/-/g, ". ") + ".");
+  if (d.time) dt.push(d.time + "경");
+  const head = dt.join(" ");
+  const where = (d.place || "").trim();
+  const eq = [d.dept && DEPT_N[d.dept] ? DEPT_N[d.dept] : d.dept, d.equip].filter(Boolean).join(" ");
+  const who = (d.who || "").trim();
+  const shape = suggestShape(d.event) || "사고";
+  const raw = tidySentence(d.event);
+
+  const s1 = [head, where ? where + "에서" : "", eq ? eq : "", who ? "(" + who + ")" : "",
+    "작업 중 " + shape + " 사고가 발생하였습니다."].filter(Boolean).join(" ")
+    .replace(/\s+/g, " ").trim();
+
+  const parts = [s1];
+  if (raw) parts.push("사고 경위는 다음과 같습니다. " + raw);
+
+  const hs = HARMS.filter(k => d.harm && d.harm[k] && d.harm[k].on);
+  if (hs.length) parts.push("피해 상황은 " + hs.join(" · ") + " 피해로 확인되었습니다.");
+  if (d.cause) parts.push("사고 원인은 " + d.cause + " 으로 파악됩니다.");
+  if (d.faultPct !== "" && d.faultPct != null)
+    parts.push("사고자 과실 비율은 " + d.faultPct + "% 로 산정하였습니다.");
+  parts.push(d.insFiled ? "본 건은 보험 접수하였으며, 손해사정 결과에 따라 처리할 예정입니다."
+    : "본 건은 보험 미접수 건으로, 자체 처리할 예정입니다.");
+  return parts.join("\n");
+}
+
+/* ── 경위서 문장 다듬기 ───────────────────────────────────────
+   구어체·약어를 보고서 문체로 바꾸고 띄어쓰기와 종결어미를 정리합니다. */
+const TIDY_WORDS = [
+  [/\b운전자\b/g, "운전원"], [/\b기사님?\b/g, "운전원"],
+  [/했음|하였음/g, "하였습니다"], [/됐음|되었음/g, "되었습니다"],
+  [/함\.|함$/g, "합니다."],
+  [/\b같음\b/g, "같습니다"],
+  [/\b없음\b/g, "없습니다"], [/\b있음\b/g, "있습니다"],
+  [/어떻게든|대충|그냥|좀\s/g, ""],
+  [/\bcntr\b/gi, "컨테이너"], [/\btc\b/gi, "T/C"], [/\bgc\b/gi, "G/C"],
+  [/\brs\b/gi, "R/S"], [/\byt\b/gi, "Y/T"],
+  [/부딪혀|부딪쳐|박아|박음/g, "접촉하여"],
+  [/찌그러|찌그러짐/g, "변형"],
+  [/\s{2,}/g, " "],
+];
+function tidySentence(text){
+  let t = String(text || "").trim();
+  if (!t) return "";
+  TIDY_WORDS.forEach(([re, to]) => { t = t.replace(re, to); });
+  /* 문장 끝을 '~하였습니다.' 로 맞춥니다 */
+  t = t.split(/(?<=[.!?。])\s+|\n+/).map(line => {
+    let x = line.trim();
+    if (!x) return "";
+    x = x.replace(/[.\s]+$/, "");
+    if (!x) return "";
+    if (/(습니다|입니다|됩니다|합니다)$/.test(x)) return x + ".";
+    if (/(했다|하였다)$/.test(x)) return x.replace(/(했다|하였다)$/, "하였습니다") + ".";
+    if (/(이다|였다|있다)$/.test(x)) return x.replace(/(이다|였다|있다)$/, "입니다") + ".";
+    if (/(함|됨|짐)$/.test(x)) return x.replace(/함$/, "하였습니다").replace(/됨$/, "되었습니다")
+      .replace(/짐$/, "졌습니다") + ".";
+    return x + ".";
+  }).filter(Boolean).join(" ");
+  return t.replace(/\s{2,}/g, " ").trim();
 }
 
 /* ── shadcn 스타일 프리미티브 ───────────────────────────────── */
@@ -338,8 +517,28 @@ function PickSel(p){
           else { setMode(""); p.onChange(e.target.value); }
         } }),
       h(Btn, { sz:"icon", title:"목록에 새 항목 추가", "aria-label":"목록에 새 항목 추가",
-        onClick:() => { setTmp(""); setMode("add"); } }, h(Icon, { n:"plus" }))),
-    mode ? D("flex gap-1.5 mt-1.5",
+        onClick:() => { setTmp(""); setMode("add"); } }, h(Icon, { n:"plus" })),
+      (p.onRemoveOption && (p.removable || []).length)
+        ? h(Btn, { sz:"icon", title:"직접 추가한 항목 지우기", "aria-label":"직접 추가한 항목 지우기",
+            onClick:() => setMode(mode === "del" ? "" : "del") }, h(Icon, { n:"circle-x" }))
+        : null),
+
+    mode === "del" ? D("mt-1.5 rounded-md border border-border bg-muted/30 p-2",
+      D("text-[11px] text-muted-foreground mb-1.5",
+        "직접 추가한 항목만 지울 수 있습니다. 기본 항목과 이미 등록된 사고가 쓰는 값은 남습니다."),
+      D("flex flex-wrap gap-1.5",
+        (p.removable || []).map(v => h("span", { key:v,
+          className:"inline-flex items-center gap-1 h-7 pl-2.5 pr-1 rounded-full border border-border bg-card text-[11.5px]" },
+          v,
+          h("button", { type:"button", "aria-label":v + " 삭제", title:"삭제",
+            className:"inline-flex items-center justify-center w-5 h-5 rounded-full hover:bg-accent hover:text-destructive",
+            onClick:() => {
+              p.onRemoveOption(v);
+              if (p.value === v) p.onChange("");
+            } }, h(Icon, { n:"x", c:"w-3 h-3" }))))),
+      D("mt-2", h(Btn, { v:"ghost", sz:"sm", onClick:() => setMode("") }, "닫기"))) : null,
+
+    mode === "add" || mode === "etc" ? D("flex gap-1.5 mt-1.5",
       h("input", { autoFocus:true, value:tmp, onChange:e => setTmp(e.target.value),
         onKeyDown:e => { if (e.key === "Enter"){ e.preventDefault(); commit(); } if (e.key === "Escape") setMode(""); },
         placeholder: mode === "add" ? "목록에 추가할 항목 (다음 등록에도 뜹니다)" : "이번 건에만 쓸 값",
@@ -493,6 +692,15 @@ function useStore(){
     if (dbRef.current){ try { await dbRef.current.doc("meta/lists").set(next); } catch (e) {} }
   }, []);
 
+  /* 선택지 삭제 — 직접 추가한 항목만 지웁니다(기존 사고에 쓰인 값은 그대로 남습니다) */
+  const removeOption = useCallback(async (key, val) => {
+    const cur = listRef.current || {};
+    const arr = (cur[key] || []).filter(v => v !== val);
+    const next = Object.assign({}, cur, { [key]: arr });
+    listRef.current = next; setLists(next);
+    if (dbRef.current){ try { await dbRef.current.doc("meta/lists").set(next); } catch (e) {} }
+  }, []);
+
   const save = useCallback(async (rec) => {
     const id = rec._id || docId(rec.no);
     const body = Object.assign({}, rec, { updatedAt: nowISO() });
@@ -589,7 +797,7 @@ function useStore(){
     console.log("[remove] 로컬 삭제 완료:", id);
   }, []);
 
-  return { rows, conn, save, remove, upsert, lists, addOption };
+  return { rows, conn, save, remove, upsert, lists, addOption, removeOption };
 }
 
 /* ═══════════ 차트 ═══════════ */
@@ -715,10 +923,10 @@ function Dashboard(p){
 
     D("grid gap-3.5 grid-cols-1 lg:grid-cols-3 items-start",
       D("lg:col-span-2", h(Card, null,
-        h(CardHead, { title:"월별 사고 발생 추이", sub:"막대는 Incident 구분별 누적 건수" }),
+        h(CardHead, { title:"월별 사고 발생 추이", sub:"막대는 사고구분별 누적 건수" }),
         D("px-4 pb-4", h(MonthlyBars, { rows })))),
       h(Card, null,
-        h(CardHead, { title:"사고 유형별 비율", sub:"Incident 구분 구성" }),
+        h(CardHead, { title:"사고 유형별 비율", sub:"사고구분 구성" }),
         D("px-4 pb-4", h(TypeDonut, { rows })))),
 
     D("grid gap-3.5 grid-cols-1 lg:grid-cols-3 items-start",
@@ -805,7 +1013,7 @@ function ReportSearchPage(p){
                   orgLabel(r) + " · 선사 " + (r.line || "—")
                   + (r.summary ? " · " + r.summary : ""))))))
         ) : (
-          D("mt-2 p-4 rounded-md border border-dashed border-border bg-muted/40",
+          D("empty-safe mt-2 p-4 rounded-md border border-dashed border-border",
             D("text-[13px] text-muted-foreground text-center",
               searchInput.trim() ? `"${searchInput}"에 해당하는 사고가 없습니다.` : "사고 데이터가 없습니다."))
         )
@@ -873,7 +1081,10 @@ function IncidentTable(p){
             h("td", { className:"px-3 py-2.5 text-muted-foreground" }, h(Icon, { n:"chevron-right", c:"w-4 h-4" }))))))),
       D("px-4 py-3 border-t border-border text-[12px] text-muted-foreground",
         `${rows.length}건 표시 · 피해예상 ${amt(sumBy(rows, r => r.dmgTotal))}원 · 총 지급 ${amt(sumBy(rows, r => r.paidTotal))}원`))
-      : D("py-16 text-center text-[13px] text-muted-foreground", "조건에 맞는 사고가 없습니다."));
+      : D("empty-safe py-16 text-center",
+          D("text-[13px] text-muted-foreground", "조건에 맞는 사고가 없습니다."),
+          D("text-[12px] text-muted-foreground mt-2 opacity-75",
+            "무사고가 가장 좋은 기록입니다 — " + sloganOfToday())));
 }
 
 /* ═══════════ 상세 드로워 ═══════════ */
@@ -974,6 +1185,8 @@ function Drawer(p){
         h(Fld, { l:"장비 번호", v:r.equip, mono:1 }),
         h(Fld, { l:"사고 원인", v:r.cause }),
         h(Fld, { l:"귀책자 구분", v:r.blame }),
+        h(Fld, { l:"사고자 과실 비율",
+          v: r.faultPct === "" || r.faultPct == null ? "" : r.faultPct + "%" }),
         h(Fld, { l:"귀책 장비·직군", v:r.dept ? r.dept + " " + (DEPT_N[r.dept] || "") : "" }),
         h(Fld, { l:"발생 장소", v:r.place }),
         h(Fld, { l:"사고 경위 (Event)", v:r.event }),
@@ -1023,6 +1236,7 @@ function Drawer(p){
                 h("td", { className:"py-2 text-right font-mono text-[12.5px] font-semibold tnum" }, won(r.paidTotal)))))
             : D("text-[13px] text-muted-foreground", "지급 내역 없음 (총 지급 " + won(r.paidTotal) + "원)")),
 
+        h(Fld, { l:"보험 접수 여부", v: r.insFiled ? "접수" : "미접수" }),
         h(Fld, { l:"보험 접수번호", v:r.insNo, mono:1 }),
         h(Fld, { l:"자기부담금(공제금)", v:r.deductible ? won(r.deductible) + "원" : "" }),
         h(Fld, { l:"보험 보상액", v:r.insPaid ? won(r.insPaid) + "원" : "" }),
@@ -1056,11 +1270,15 @@ function FormDialog(p){
   const [busy, setBusy] = useState(false);
   const [ri, setRi] = useState(0);
   const [autoNo, setAutoNo] = useState(!p.init._id);
+  const [evPrev, setEvPrev] = useState(null);   // 경위서 되돌리기용 직전 본문
   const set = (k, v) => setD(prev => Object.assign({}, prev, { [k]: v }));
 
   const LS  = p.lists || {};
   const opt = (base, key) => optionsOf(base, p.rows, key, LS[key]);
   const add = key => v => { if (p.onAddOption) p.onAddOption(key, v); };
+  const del = key => v => { if (p.onRemoveOption) p.onRemoveOption(key, v); };
+  /* 지울 수 있는 항목 = 직접 추가해 저장해 둔 것만 */
+  const rmv = key => (LS[key] || []);
 
   /* 사고번호 자동 생성 — 소속과 발생연도를 따라갑니다 */
   useEffect(() => {
@@ -1069,6 +1287,10 @@ function FormDialog(p){
     const n = nextNo(p.rows, d.grp, y);
     if (n !== d.no) setD(prev => Object.assign({}, prev, { no:n }));
   }, [autoNo, d.grp, d.date, p.rows]);
+
+  /* 사고 경위 → 사고구분 자동 추천 (규칙 기반, 값은 바꾸지 않고 제안만 합니다) */
+  const typeHint  = useMemo(() => suggestType(d.event, d), [d.event, d.harm]);
+  const shapeHint = useMemo(() => suggestShape(d.event), [d.event]);
 
   const dmgMap = {}; (d.dmg || []).forEach(x => dmgMap[x.cat] = x);
   const payMap = {}; (d.pay || []).forEach(x => payMap[x.payer] = x.amt);
@@ -1178,7 +1400,8 @@ function FormDialog(p){
         D("grid gap-3 sm:grid-cols-3",
           D(null, h(Lbl, { for:"i-grp" }, "소속 구분"),
             h(PickSel, { id:"i-grp", value:d.grp, options:opt(ORGS, "grp"),
-              onAddOption:add("grp"), onChange:v => set("grp", v) })),
+              onAddOption:add("grp"), onRemoveOption:del("grp"), removable:rmv("grp"),
+              onChange:v => set("grp", v) })),
           D(null,
             h(Lbl, { for:"i-no" },
               "사고번호 *",
@@ -1197,7 +1420,8 @@ function FormDialog(p){
           d.grp === "도급사" || (!isOwn(d) && d.grp !== "GWCT")
             ? D(null, h(Lbl, { for:"i-vendor" }, "도급 업체명"),
                 h(PickSel, { id:"i-vendor", value:d.vendor, options:opt(VENDORS, "vendor"),
-                  onAddOption:add("vendor"), onChange:v => set("vendor", v) }))
+                  onAddOption:add("vendor"), onRemoveOption:del("vendor"), removable:rmv("vendor"),
+                  onChange:v => set("vendor", v) }))
             : D(null, h(Lbl, { for:"i-owner-top" }, "법인 담당자 · 전표번호"),
                 h("input", { id:"i-owner-top", value:d.owner, onChange:e => set("owner", e.target.value),
                   className:cls(FIELD, "h-9") }))),
@@ -1214,18 +1438,31 @@ function FormDialog(p){
               placeholder:"5L Block-15Bay / 2번 안벽 등", className:cls(FIELD, "h-9") }))),
 
         D("grid gap-3 sm:grid-cols-2 mt-3",
-          D(null, h(Lbl, { for:"i-type" }, "Incident 구분"),
+          D(null, h(Lbl, { for:"i-type" }, "사고구분"),
             h(PickSel, { id:"i-type", value:d.type, options:opt(TYPES, "type"),
-              onAddOption:add("type"), onChange:v => set("type", v) })),
+              onAddOption:add("type"), onRemoveOption:del("type"), removable:rmv("type"),
+              onChange:v => set("type", v) }),
+            /* 사고 경위를 읽어 자동으로 골라 줍니다 — 언제든 위에서 바꿀 수 있습니다 */
+            typeHint && typeHint !== d.type
+              ? D("flex flex-wrap items-center gap-1.5 mt-1.5",
+                  S("text-[11px] text-muted-foreground", "경위로 보면"),
+                  h("button", { type:"button", onClick:() => set("type", typeHint),
+                    className:"inline-flex items-center gap-1 h-7 px-2.5 rounded-full border border-primary bg-accent/60 text-[11.5px] font-medium hover:bg-accent" },
+                    h(Icon, { n:"check", c:"w-3 h-3" }), typeHint, " 적용"),
+                  shapeHint ? S("text-[11px] text-muted-foreground", "· " + shapeHint + " 형태") : null)
+              : (typeHint ? D("text-[11px] text-muted-foreground mt-1.5",
+                  "경위 내용과 일치합니다" + (shapeHint ? " · " + shapeHint + " 형태" : "")) : null)),
           D(null, h(Lbl, { for:"i-cause" }, "사고 원인"),
             h(PickSel, { id:"i-cause", value:d.cause, options:opt(CAUSES, "cause"),
-              onAddOption:add("cause"), onChange:v => set("cause", v) }))),
+              onAddOption:add("cause"), onRemoveOption:del("cause"), removable:rmv("cause"),
+              onChange:v => set("cause", v) }))),
 
         D("grid gap-3 sm:grid-cols-4 mt-3",
           D(null, h(Lbl, { for:"i-dept" }, "귀책 장비·직군"),
             h(PickSel, { id:"i-dept", value:d.dept, options:opt(DEPTS, "dept"),
               labelOf:v => v + (DEPT_N[v] ? " " + DEPT_N[v] : ""),
-              onAddOption:add("dept"), onChange:v => set("dept", v) })),
+              onAddOption:add("dept"), onRemoveOption:del("dept"), removable:rmv("dept"),
+              onChange:v => set("dept", v) })),
           D(null, h(Lbl, { for:"i-equip" }, "장비 번호"),
             h("input", { id:"i-equip", value:d.equip, onChange:e => set("equip", e.target.value),
               list:"equips", placeholder:"T/C274", className:cls(FIELD, "h-9 font-mono") }),
@@ -1237,13 +1474,64 @@ function FormDialog(p){
               placeholder:"TC-A조/이진우", className:cls(FIELD, "h-9") })),
           D(null, h(Lbl, { for:"i-blame" }, "귀책자 구분"),
             h(PickSel, { id:"i-blame", value:d.blame, options:opt(BLAMES, "blame"),
-              onAddOption:add("blame"), onChange:v => set("blame", v) }))),
+              onAddOption:add("blame"), onRemoveOption:del("blame"), removable:rmv("blame"),
+              onChange:v => set("blame", v) }))),
+
+        /* 사고자 과실 비율 — 0~100 사이 숫자만 받습니다 */
+        D("grid gap-3 sm:grid-cols-4 mt-3",
+          D(null, h(Lbl, { for:"i-fault" }, "사고자 과실 비율 (%)"),
+            D("flex items-center gap-2",
+              h("input", { id:"i-fault", type:"number", min:0, max:100, step:1,
+                inputMode:"numeric", value: d.faultPct === "" || d.faultPct == null ? "" : d.faultPct,
+                onChange:e => {
+                  const raw = e.target.value;
+                  if (raw === "") return set("faultPct", "");
+                  const n = Math.max(0, Math.min(100, Math.round(Number(raw) || 0)));
+                  set("faultPct", n);
+                },
+                placeholder:"0 ~ 100", className:cls(FIELD, "h-9 font-mono tnum text-right") }),
+              S("text-[12.5px] text-muted-foreground shrink-0", "%")),
+            D("text-[11px] text-muted-foreground mt-1",
+              d.faultPct === "" || d.faultPct == null ? "확정 전이면 비워 두십시오."
+                : "사고자 과실 " + d.faultPct + "% · 상대 과실 " + (100 - Number(d.faultPct)) + "%"))),
 
         /* ── 사고 경위 및 피해 상황 ────────────────── */
         Grp("사고 경위 및 피해 상황", null,
-          D(null, h(Lbl, { for:"i-event" }, "사고 경위 (개요)"),
-            h(Txt, { id:"i-event", value:d.event, onChange:e => set("event", e.target.value),
-              placeholder:"상기 운전원은 …" })),
+          D(null,
+            D("flex flex-wrap items-center gap-1.5 mb-1.5",
+              h(Lbl, { for:"i-event" }, "사고 경위 (개요)"),
+              D("ml-auto flex flex-wrap items-center gap-1.5",
+                h(Btn, { sz:"sm", icon:"file-text", title:"입력한 일시·장소·장비·피해로 기본 초안을 만듭니다",
+                  onClick:() => { setEvPrev(d.event); set("event", draftEvent(d)); } }, "초안 생성"),
+                h(Btn, { sz:"sm", icon:"pen-line", disabled:!String(d.event || "").trim(),
+                  title:"구어체·약어를 보고서 문체로 정리합니다",
+                  onClick:() => { setEvPrev(d.event); set("event", tidySentence(d.event)); } }, "문장 다듬기"),
+                evPrev != null
+                  ? h(Btn, { sz:"sm", icon:"refresh-cw", title:"직전 내용으로 되돌립니다",
+                      onClick:() => { set("event", evPrev); setEvPrev(null); } }, "되돌리기")
+                  : null)),
+            h(Txt, { id:"i-event", value:d.event,
+              onChange:e => { set("event", e.target.value); },
+              className:"min-h-[136px]",
+              placeholder:"상기 운전원은 …" }),
+            D("text-[11px] text-muted-foreground mt-1",
+              "자동으로 만든 문장은 기본 초안입니다. 이 칸에서 그대로 고쳐 쓰면 고친 내용이 저장됩니다.")),
+          /* 보험 접수 여부 — 피해 상황 앞에 둡니다 */
+          D("mt-3",
+            D("text-[11.5px] font-bold text-foreground mb-2", "보험 접수 여부"),
+            D("inline-flex rounded-md border border-border overflow-hidden",
+              [[true, "보험 접수", "circle-check-big"], [false, "미접수", "circle-x"]].map(o =>
+                h("button", { key:String(o[0]), type:"button", "aria-pressed": !!d.insFiled === o[0],
+                  onClick:() => set("insFiled", o[0]),
+                  className:cls("inline-flex items-center gap-1.5 h-9 px-3.5 text-[12.5px] font-medium transition-colors",
+                    !!d.insFiled === o[0]
+                      ? (o[0] ? "bg-primary text-primary-foreground" : "bg-muted text-foreground")
+                      : "bg-card text-muted-foreground hover:bg-accent") },
+                  h(Icon, { n:o[2], c:"w-3.5 h-3.5" }), o[1]))),
+            D("text-[11px] text-muted-foreground mt-1.5",
+              d.insFiled ? "접수번호와 보상액은 아래 '보험 · 손해사정 · 상태' 에 적습니다."
+                : "보험사에 접수하지 않은 건입니다. 나중에 접수하면 이 값을 바꾸십시오.")),
+
           D("mt-3",
             D("text-[11.5px] font-bold text-foreground mb-2", "피해 상황 — 해당하는 것만 체크하십시오"),
             D("flex flex-wrap gap-2",
@@ -1690,22 +1978,24 @@ function UploadDialog(p){
 }
 
 /* ═══════════ CSV 내보내기 ═══════════ */
-const CSV_HEAD = ["사고번호","소속구분","도급사","Incident 구분","발생일자","발생시각","발생장소",
-  "귀책장비","귀책자","선사","선사담당","화주"]
+const CSV_HEAD = ["사고번호","소속구분","도급사","사고구분","발생일자","발생시각","발생장소",
+  "귀책장비","귀책자","사고자과실비율(%)","선사","선사담당","화주"]
   .concat(DMG_CATS.flatMap(c => [c + "_내용", c + "_비용"]))
   .concat(["피해예상합계"]).concat(PAYERS.map(p => p + "_금액"))
-  .concat(["총지급금액","보험접수번호","자기부담금","손해사정인","비용처리상세","처리현황",
+  .concat(["총지급금액","보험접수여부","보험접수번호","자기부담금","손해사정인","비용처리상세","처리현황",
     "향후계획","담당자·전표","진행단계","종결일자","Release·종결메모","첨부수","최종수정"]);
 
 function csvRow(r){
   const dm = {}; (r.dmg || []).forEach(d => dm[d.cat] = d);
   const pm = {}; (r.pay || []).forEach(x => pm[x.payer] = x.amt);
   const cells = [r.no, r.grp, r.vendor, r.type, r.date, r.time, r.place,
-    r.dept + (DEPT_N[r.dept] ? "(" + DEPT_N[r.dept] + ")" : ""), r.who, r.line, r.lineContact, r.cargo];
+    r.dept + (DEPT_N[r.dept] ? "(" + DEPT_N[r.dept] + ")" : ""), r.who,
+    (r.faultPct === "" || r.faultPct == null) ? "" : Number(r.faultPct),
+    r.line, r.lineContact, r.cargo];
   DMG_CATS.forEach(c => { cells.push((dm[c] || {}).desc || ""); cells.push((dm[c] || {}).cost || 0); });
   cells.push(r.dmgTotal || 0);
   PAYERS.forEach(k => cells.push(pm[k] || 0));
-  cells.push(r.paidTotal || 0, r.insNo, r.deductible || 0, r.surveyor, r.costDetail, r.progress,
+  cells.push(r.paidTotal || 0, r.insFiled ? "접수" : "미접수", r.insNo, r.deductible || 0, r.surveyor, r.costDetail, r.progress,
     r.plan, r.owner, r.status, r.closedAt, r.release, (r.files || []).length, (r.updatedAt || "").slice(0, 10));
   return cells;
 }
@@ -2144,6 +2434,9 @@ function reportBody(r, srcMap, ridx){
       <th>사고장소</th><td colspan="3">${esc(r.place || "—")}</td></tr>
   <tr><th>사고원인</th><td colspan="3">${esc(r.cause || "—")}</td>
       <th>귀 책 자</th><td>${esc(r.blame || "—")}</td></tr>
+  <tr><th>사고구분</th><td colspan="3">${esc(r.type || "—")}</td>
+      <th>과실비율</th><td class="mono">${r.faultPct === "" || r.faultPct == null ? "—" : esc(r.faultPct) + "%"}</td></tr>
+  <tr><th>보험접수</th><td colspan="5">${r.insFiled ? "접수" : "미접수"}${r.insNo ? " · 접수번호 " + esc(r.insNo) : ""}</td></tr>
 </table>`;
 
   /* 사고 금액 — 총액·자부담을 먼저, 그 아래 내역표 */
@@ -2217,6 +2510,96 @@ function reportDoc(r, srcMap, ri){
 </head><body>${reportBody(r, srcMap, ri)}</body></html>`;
 }
 
+/* ═══════════ 보고서 저장 폴더 (File System Access API) ═══════════
+   사용자가 최초 1회 상위 폴더를 고르면 그 핸들을 IndexedDB 에 남겨
+   다음 저장부터는 바로 <연도>/<사고번호_소속_귀책자>/ 아래에 씁니다. */
+const FS_OK = typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
+const FSDB = { name:"gwct_fs", store:"handles", key:"reportRoot" };
+
+function idbOpen(){
+  return new Promise((res, rej) => {
+    try {
+      const rq = indexedDB.open(FSDB.name, 1);
+      rq.onupgradeneeded = () => { const db = rq.result;
+        if (!db.objectStoreNames.contains(FSDB.store)) db.createObjectStore(FSDB.store); };
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    } catch (e) { rej(e); }
+  });
+}
+function idbGet(key){
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(FSDB.store, "readonly");
+    const rq = tx.objectStore(FSDB.store).get(key);
+    rq.onsuccess = () => res(rq.result || null);
+    rq.onerror = () => rej(rq.error);
+  })).catch(() => null);
+}
+function idbSet(key, val){
+  return idbOpen().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(FSDB.store, "readwrite");
+    tx.objectStore(FSDB.store).put(val, key);
+    tx.oncomplete = () => res(true);
+    tx.onerror = () => rej(tx.error);
+  })).catch(() => false);
+}
+
+/* 폴더·파일 이름에 쓸 수 없는 글자를 걸러냅니다 */
+function safeSeg(v){
+  return String(v == null ? "" : v)
+    .replace(/[\/:*?"<>|\u0000-\u001f]+/g, "_")
+    .replace(/\s+/g, " ")
+    .replace(/^[.\s]+|[.\s]+$/g, "")
+    .slice(0, 80);
+}
+/* 사고발생연도 — 발생일자 우선, 없으면 사고번호의 두 자리 연도 */
+function yearFolder(r){
+  const d = String(r.date || "").slice(0, 4);
+  if (/^\d{4}$/.test(d)) return d;
+  const m = String(r.no || "").match(/(\d{2})\s*-\s*\d/);
+  if (m) return "20" + m[1];
+  return String(new Date().getFullYear());
+}
+/* 폴더명 — 사고번호_소속_귀책자 */
+function caseFolder(r){
+  const org = isOwn(r) ? "GWCT" : (r.grp || "미지정");
+  const who = (r.who || r.blame || "").trim() || "귀책미정";
+  return [safeSeg(r.no) || "사고번호미정", safeSeg(org), safeSeg(who)].join("_");
+}
+
+/* 저장 폴더 핸들 — 저장된 것을 쓰고, 없거나 권한이 없으면 다시 묻습니다 */
+async function reportRootDir(force){
+  if (!FS_OK) return null;
+  let root = force ? null : await idbGet(FSDB.key);
+  if (root){
+    let st = "denied";
+    try { st = await root.queryPermission({ mode:"readwrite" }); } catch (e) { st = "denied"; }
+    if (st !== "granted"){
+      try { st = await root.requestPermission({ mode:"readwrite" }); } catch (e) { st = "denied"; }
+    }
+    if (st !== "granted") root = null;
+  }
+  if (!root){
+    root = await window.showDirectoryPicker({ id:"gwct-report-root", mode:"readwrite",
+      startIn:"documents" });
+    await idbSet(FSDB.key, root);
+  }
+  return root;
+}
+/* <루트>/<연도>/<사고번호_소속_귀책자>/<파일> 로 씁니다. 폴더는 없으면 만듭니다. */
+async function writeIntoCaseFolder(r, filename, content, force){
+  const root = await reportRootDir(force);
+  if (!root) return null;
+  const yDir = await root.getDirectoryHandle(yearFolder(r), { create:true });
+  const cDir = await yDir.getDirectoryHandle(caseFolder(r), { create:true });
+  const fh = await cDir.getFileHandle(filename, { create:true });
+  const w = await fh.createWritable();
+  await w.write(new Blob([content], { type:"text/html; charset=utf-8" }));
+  await w.close();
+  return { root: root.name, path: [root.name, yearFolder(r), caseFolder(r), filename].join(" / ") };
+}
+
+
 function ReportView(p){
   const r = p.rec;
   const rounds = reportRounds(r);
@@ -2224,7 +2607,7 @@ function ReportView(p){
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const cur = Math.max(0, Math.min(ri, rounds.length - 1));
-  async function saveFile(){
+  async function saveFile(force){
     if (busy) return;
     const name = String(r.no).replace(/[^\w가-힣-]+/g, "_") + "_" + roundLabel(rounds, cur) + "보고.html";
     setBusy(true); setMsg("사진을 파일에 심는 중…");
@@ -2233,6 +2616,29 @@ function ReportView(p){
       const nImg = (r.files || []).filter(isImg).length;
       const embedded = Object.keys(srcMap).length;
       const htmlContent = reportDoc(r, srcMap, cur);
+      const photo = nImg && !embedded ? " (사진은 파일에 담기지 못해 부착란으로 남겼습니다)"
+        : embedded ? " 사진 " + embedded + "장 포함." : "";
+
+      /* ① 폴더 선택 방식 — <연도>/<사고번호_소속_귀책자>/ 아래에 저장합니다 */
+      if (FS_OK){
+        setMsg("저장할 폴더를 고르십시오…");
+        try {
+          const done = await writeIntoCaseFolder(r, name, htmlContent, force === true);
+          if (done){
+            setMsg("저장했습니다 → " + done.path + photo
+              + " 파일을 열어 Ctrl+P로 인쇄하거나 PDF로 저장하십시오.");
+            return;
+          }
+        } catch (e) {
+          const nm = e && e.name;
+          if (nm === "AbortError" || nm === "NotAllowedError"){
+            setMsg("폴더 선택을 취소했습니다. 저장하지 않았습니다.");
+            return;
+          }
+          setMsg("폴더에 저장하지 못해 다운로드로 대신합니다"
+            + (e && e.message ? " (" + e.message + ")" : "") + ".");
+        }
+      }
 
       // Claude Code API 사용 시도
       const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
@@ -2262,11 +2668,14 @@ function ReportView(p){
         : "저장할 수 없습니다" + (c ? " (" + c + ")" : "") + ".");
     } finally { setBusy(false); }
   }
-  return D("flex flex-col gap-3",
+  /* 보고서 화면은 전체 폭이 아니라 본문의 약 2/3(용지 190mm 기준)로 좁혀 보여줍니다 */
+  return D("rpt-view mx-auto w-full flex flex-col gap-3",
     D("noprint flex flex-wrap items-center gap-2",
       h(Btn, { icon:"arrow-left", onClick:p.onBack }, "목록으로"),
-      h(Btn, { v:"primary", icon:"download", disabled:busy, onClick:saveFile },
+      h(Btn, { v:"primary", icon:"download", disabled:busy, onClick:() => saveFile(false) },
         busy ? "준비 중…" : "인쇄용 파일 저장"),
+      FS_OK ? h(Btn, { icon:"folder", disabled:busy, onClick:() => saveFile(true),
+        title:"저장할 상위 폴더를 다시 고릅니다" }, "저장 폴더 변경") : null,
       h(Btn, { icon:"pencil", onClick:() => p.onEdit(r) }, "내용 수정"),
       msg ? S("text-[12px] text-muted-foreground ml-1", msg) : null),
 
@@ -2281,8 +2690,20 @@ function ReportView(p){
       S("ml-auto text-[11.5px] text-muted-foreground px-1",
         "요약 1면 + 상세 1면 · 저장한 HTML을 열어 Ctrl+P → 'PDF로 저장'")),
 
+    /* 저장 경로 안내 — 어디에 어떤 이름으로 떨어지는지 미리 보여줍니다 */
+    D("noprint flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-[11.5px] text-muted-foreground",
+      h(Icon, { n:"folder", c:"w-3.5 h-3.5 shrink-0 mt-0.5" }),
+      FS_OK
+        ? D(null, "저장 위치 ",
+            S("font-mono text-foreground", yearFolder(r) + " / " + caseFolder(r) + " /"),
+            " — 처음 한 번 상위 폴더를 고르면 연도 폴더와 사고 폴더를 자동으로 만들고, 다음부터는 같은 자리에 바로 저장합니다. ",
+            "사진·첨부·관련 문서도 이 사고 폴더에 함께 모아두십시오.")
+        : D(null, "이 브라우저는 폴더 지정 저장을 지원하지 않습니다. 다운로드 폴더로 받은 뒤 ",
+            S("font-mono text-foreground", yearFolder(r) + " / " + caseFolder(r) + " /"),
+            " 폴더로 옮기십시오. (Chrome 또는 Edge 에서 열면 폴더에 바로 저장됩니다)")),
+
     D({ className:"rounded-lg border border-border overflow-x-auto shadow-sm", style:{ background:"#e9edf0" } },
-      D({ className:"py-4", dangerouslySetInnerHTML:{ __html:reportBody(r, null, cur) } })));
+      D({ className:"py-5 px-3", dangerouslySetInnerHTML:{ __html:reportBody(r, null, cur) } })));
 }
 
 /* ═══════════ 앱 ═══════════ */
@@ -2452,6 +2873,14 @@ function App(){
             h(Btn, { v:"white", icon:"plus",
               onClick:() => setForm(Object.assign(blankIncident(), {
                 no:nextNo(store.rows, "GWCT", new Date().getFullYear()) })) }, "신규 사고 등록")))),
+      /* 안전 슬로건 띠 — 현장 운영 화면다운 톤을 만듭니다 */
+      D("safety-strip noprint",
+        D("max-w-[1280px] mx-auto px-4 sm:px-5 py-1.5 flex items-center gap-3 text-[11.5px]",
+          S("slogan", S({ className:"dot" }), S("font-semibold", sloganOfToday())),
+          S({ className:"hidden sm:inline text-[11px] opacity-75" },
+            "· 작업 전 확인 · 보호구 착용 · 이상 발견 시 즉시 정지 보고"),
+          S({ className:"tape" }))),
+
       D("bg-card/80 backdrop-blur",
         D("max-w-[1280px] mx-auto px-4 sm:px-5 py-2.5 flex flex-wrap items-center gap-2",
         Seg("view", [{ v:"dash", l:"대시보드" }, { v:"list", l:"사고 목록", n:scoped.length }, { v:"report", l:"보고서" }], view,
@@ -2498,7 +2927,7 @@ function App(){
       onDelete }) : null,
 
     form ? h(FormDialog, { key:form._id || "new", init:form, rows:store.rows,
-      lists:store.lists, onAddOption:store.addOption,
+      lists:store.lists, onAddOption:store.addOption, onRemoveOption:store.removeOption,
       onClose:() => setForm(null), onSave }) : null,
 
     upl ? h(UploadDialog, { rows:store.rows, onUpsert:store.upsert,
