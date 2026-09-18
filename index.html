@@ -787,24 +787,20 @@ function Dashboard(p){
 /* ═══════════ 보고서 검색 ═══════════ */
 function ReportSearchPage(p){
   const [searchInput, setSearchInput] = useState("");
-  const [results, setResults] = useState([]);
-  const [searched, setSearched] = useState(false);
 
-  const handleSearch = () => {
-    setSearched(true);
-    if (!searchInput.trim()) {
-      setResults([]);
-      return;
-    }
-
+  // 검색 입력에 따라 필터링된 결과 계산
+  let results = [];
+  if (searchInput.trim()) {
     const query = searchInput.trim().toUpperCase();
-    const filtered = p.rows.filter(r => r.no && r.no.toUpperCase().includes(query));
-    setResults(filtered);
-  };
+    results = p.rows.filter(r => r.no && r.no.toUpperCase().includes(query));
+  } else {
+    // 검색 입력이 없으면 모든 사고 표시
+    results = p.rows;
+  }
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
-      handleSearch();
+      e.preventDefault();
     }
   };
 
@@ -820,28 +816,27 @@ function ReportSearchPage(p){
             onKeyPress:handleKeyPress,
             placeholder:"사고번호 입력 (예: GWCT-2024-001)",
             className:cls(FIELD, "flex-1 h-9") }),
-          h(Btn, { v:"navy", onClick:handleSearch, icon:"search" }, "검색")),
+          h(Btn, { v:"navy", onClick:() => {}, icon:"search" }, "검색")),
 
-        searched ? (
-          results.length > 0 ? (
-            D("mt-2",
-              S("text-[12px] text-muted-foreground mb-2", `검색 결과: ${results.length}건`),
-              D("flex flex-col gap-2",
-                results.map(r => h("button", {
-                  key:r._id,
-                  onClick:() => p.onSelectReport(r),
-                  className:"rounded-md border border-border bg-card p-3 text-left hover:bg-accent hover:border-ring transition-colors" },
-                  D("flex flex-wrap items-center gap-2 mb-1",
-                    S("font-mono text-[12px] font-medium", r.no),
-                    S("font-mono text-[11.5px] text-muted-foreground", ymd(r.date) + (r.time ? " " + r.time : "")),
-                    h(TypeBadge, { t:r.type }), h(StageBadge, { s:r.status })),
-                  D("text-[12.5px] text-muted-foreground", r.vendor || "선사 정보 없음")))))))
-          ) : (
-            D("mt-2 p-4 rounded-md border border-dashed border-border bg-muted/40",
-              D("text-[13px] text-muted-foreground text-center",
-                `"${searchInput}"에 해당하는 사고가 없습니다.`))
-          )
-        ) : null));
+        results.length > 0 ? (
+          D("mt-2",
+            S("text-[12px] text-muted-foreground mb-2", `${searchInput.trim() ? "검색" : "사고"} 결과: ${results.length}건`),
+            D("flex flex-col gap-2 max-h-[600px] overflow-y-auto",
+              results.map(r => h("button", {
+                key:r._id,
+                onClick:() => p.onSelectReport(r),
+                className:"rounded-md border border-border bg-card p-3 text-left hover:bg-accent hover:border-ring transition-colors" },
+                D("flex flex-wrap items-center gap-2 mb-1",
+                  S("font-mono text-[12px] font-medium", r.no),
+                  S("font-mono text-[11.5px] text-muted-foreground", ymd(r.date) + (r.time ? " " + r.time : "")),
+                  h(TypeBadge, { t:r.type }), h(StageBadge, { s:r.status })),
+                D("text-[12.5px] text-muted-foreground", r.vendor || "선사 정보 없음"))))))
+        ) : (
+          D("mt-2 p-4 rounded-md border border-dashed border-border bg-muted/40",
+            D("text-[13px] text-muted-foreground text-center",
+              searchInput.trim() ? `"${searchInput}"에 해당하는 사고가 없습니다.` : "사고 데이터가 없습니다."))
+        )
+      ))));
 }
 
 /* ═══════════ 사고 목록 ═══════════ */
