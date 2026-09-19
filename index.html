@@ -468,6 +468,8 @@ const BTN = {
   destructive:"bg-destructive text-destructive-foreground hover:opacity-90",
   ok:"bg-ok text-ok-foreground hover:opacity-90",
   navy:"border border-white/40 bg-white/10 text-white hover:bg-white/20",
+  /* 정의가 없으면 배경·글자색이 통째로 빠져 버튼이 안 보입니다 */
+  secondary:"border border-input bg-muted text-foreground hover:bg-accent hover:text-accent-foreground",
   white:"bg-white text-[#003D8A] hover:bg-white/90",
 };
 function Btn(p){
@@ -2868,8 +2870,10 @@ function App(){
               h(Icon, { n:store.conn === "연결됨" ? "circle-check-big" : "circle-alert", c:"w-3 h-3" }),
               "저장소 " + store.conn),
             h(Btn, { v:"navy", icon:"file-spreadsheet", onClick:() => setUpl(true) }, "엑셀 업로드"),
-            h(Btn, { v:"secondary", icon:"download", onClick:exportJson }, "JSON 내보내기"),
-            h(Btn, { v:"secondary", icon:"upload", onClick:importJson }, "JSON 가져오기"),
+            h(Btn, { v:"navy", icon:"download", onClick:exportJson,
+              title:"사고 데이터 전체를 JSON 파일로 내려받습니다(백업)" }, "JSON 내보내기"),
+            h(Btn, { v:"navy", icon:"upload", onClick:importJson,
+              title:"내려받아 둔 JSON 파일에서 사고 데이터를 불러옵니다" }, "JSON 가져오기"),
             h(Btn, { v:"white", icon:"plus",
               onClick:() => setForm(Object.assign(blankIncident(), {
                 no:nextNo(store.rows, "GWCT", new Date().getFullYear()) })) }, "신규 사고 등록")))),
