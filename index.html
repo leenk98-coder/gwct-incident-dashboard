@@ -292,7 +292,6 @@ function blankIncident(){
     harm:{ "대인":{on:false,txt:""}, "대물":{on:false,txt:""}, "재산":{on:false,txt:""}, "기타":{on:false,txt:""} },
     line:"", lineContact:"", cargo:"",
     dmg:[], dmgTotal:0, finTotal:0, pay:[], paidTotal:0,
-    eventMemo:"", eventOk:false,
     insFiled:false, faultPct:"",
     insNo:"", insPaid:0, deductible:0, surveyor:"",
     costDetail:"", progress:"", owner:"", release:"",
@@ -323,9 +322,6 @@ function withDefaults(r){
   /* 나중에 추가한 항목 — 예전 레코드에는 없으므로 기본값으로 채웁니다 */
   if (o.insFiled == null) o.insFiled = !!(o.insNo || o.insPaid);
   if (o.faultPct == null) o.faultPct = "";
-  if (o.eventMemo == null) o.eventMemo = "";
-  /* 예전 46건은 이미 사람이 쓴 확정 경위이므로 검토 완료로 봅니다 */
-  if (o.eventOk == null) o.eventOk = !!(o.event || "").trim();
   if (!Array.isArray(o.files)) o.files = [];
   return o;
 }
@@ -409,83 +405,119 @@ function suggestShape(text){
   return "";
 }
 
-/* 받침에 따라 조사를 붙입니다 — "부주의로" / "불량으로" */
-function hasJong(w){
-  const ch = String(w || "").trim().slice(-1);
-  const c = ch.charCodeAt(0);
-  if (!(c >= 0xAC00 && c <= 0xD7A3)) return null;   // 한글 음절이 아니면 판단 보류
-  return (c - 0xAC00) % 28;                          // 0 = 받침 없음, 8 = ㄹ
-}
-function josaRo(w){
-  const j = hasJong(w);
-  if (j === null) return w + "로";                   // 숫자·영문·기호는 '로'
-  return w + (j === 0 || j === 8 ? "로" : "으로");
-}
+/* ── 경위 검증 (규칙 기반) ─────────────────────────────────────
+   사용자가 쓴 내용을 그대로 두고 표기·문체·흐름만 손봅니다.
+   없는 사실을 만들지 않고, 문장을 지우지도 않습니다. */
 
-/* ── 경위서 초안 ──────────────────────────────────────────────
-   입력해 둔 항목(일시·장소·장비·작업자·경위)을 엮어 보고서 문장으로 만듭니다. */
-function draftEvent(d){
-  const dt = [];
-  if (d.date) dt.push(String(d.date).replace(/-/g, ". ") + ".");
-  if (d.time) dt.push(d.time + "경");
-  const head = dt.join(" ");
-  const where = (d.place || "").trim();
-  const eq = [d.dept && DEPT_N[d.dept] ? DEPT_N[d.dept] : d.dept, d.equip].filter(Boolean).join(" ");
-  const who = (d.who || "").trim();
-  /* 간단 입력이 있으면 그것을, 없으면 기존 경위를 원문으로 씁니다 */
-  const src = String(d.eventMemo || "").trim() || String(d.event || "");
-  const shape = suggestShape(src) || "사고";
-  const raw = tidySentence(src);
-
-  const s1 = [head, where ? where + "에서" : "", eq ? eq : "", who ? "(" + who + ")" : "",
-    "작업 중 " + shape + " 사고가 발생하였습니다."].filter(Boolean).join(" ")
-    .replace(/\s+/g, " ").trim();
-
-  const parts = [s1];
-  if (raw) parts.push("사고 경위는 다음과 같습니다. " + raw);
-
-  const hs = HARMS.filter(k => d.harm && d.harm[k] && d.harm[k].on);
-  if (hs.length) parts.push("피해 상황은 " + hs.join(" · ") + " 피해로 확인되었습니다.");
-  if (d.cause) parts.push("사고 원인은 " + josaRo(d.cause) + " 파악됩니다.");
-  if (d.faultPct !== "" && d.faultPct != null)
-    parts.push("사고자 과실 비율은 " + d.faultPct + "%로 산정하였습니다.");
-  parts.push(d.insFiled ? "본 건은 보험 접수하였으며, 손해사정 결과에 따라 처리할 예정입니다."
-    : "본 건은 보험 미접수 건으로, 자체 처리할 예정입니다.");
-  return parts.join("\n");
-}
-
-/* ── 경위서 문장 다듬기 ───────────────────────────────────────
-   구어체·약어를 보고서 문체로 바꾸고 띄어쓰기와 종결어미를 정리합니다. */
-const TIDY_WORDS = [
-  [/\b운전자\b/g, "운전원"], [/\b기사님?\b/g, "운전원"],
-  [/했음|하였음/g, "하였습니다"], [/됐음|되었음/g, "되었습니다"],
-  [/\b같음\b/g, "같습니다"],
-  [/\b없음\b/g, "없습니다"], [/\b있음\b/g, "있습니다"],
-  [/어떻게든|대충|그냥|좀\s/g, ""],
-  [/\bcntr\b/gi, "컨테이너"], [/\btc\b/gi, "T/C"], [/\bgc\b/gi, "G/C"],
-  [/\brs\b/gi, "R/S"], [/\byt\b/gi, "Y/T"],
-  [/부딪혀|부딪쳐|박아|박음/g, "접촉하여"],
-  [/찌그러|찌그러짐/g, "변형"],
-  [/\s{2,}/g, " "],
+/* 현장에서 자주 나오는 표기 흔들림 — 앞이 틀린 표기, 뒤가 바른 표기 */
+const TYPO_MAP = [
+  [/콘테이너|컨테이너|컨테이터|컨테어너|콘테이나/g, "컨테이너"],
+  [/겐트리|갠추리|간트리/g, "갠트리"],
+  [/트렌스퍼|트란스퍼/g, "트랜스퍼"],
+  [/리치스테커|리치스태카|리치스텍커/g, "리치스태커"],
+  [/야드트렉터|야드트랙타|야드트렉타/g, "야드트랙터"],
+  [/스프레드바|스프레더바|스프레다/g, "스프레더"],
+  [/렛싱|레싱|랫싱/g, "래싱"],
+  [/샤시|샤씨|섀시/g, "샤시"],
+  [/파레트|파렛트/g, "팔레트"],
+  [/밧데리|바테리/g, "배터리"],
+  [/부주위|부주의함/g, "부주의"],
+  [/운전수|기사분|기사님/g, "운전원"],
+  [/작업자분|작업자님/g, "작업자"],
+  [/후렌지|플렌지/g, "플랜지"],
+  [/아우트리거|아웃트리거/g, "아우트리거"],
+  [/체인블럭|체인블록/g, "체인블록"],
+  [/휀스|펜스/g, "펜스"],
+  [/데미지/g, "손상"],
+  [/크락션|크렉션/g, "경적"],
+  [/에어콘/g, "에어컨"],
+  [/멧세지|메세지/g, "메시지"],
+  [/되서/g, "되어서"], [/됬/g, "됐"],
+  [/않되/g, "안 되"], [/안되어/g, "안 되어"],
+  [/할려고/g, "하려고"], [/할수/g, "할 수"], [/일어날수/g, "일어날 수"],
+  [/그리고나서|그리고 나서/g, "그 뒤"],
+  /* 붙여 쓰기 쉬운 곳 */
+  [/작업중/g, "작업 중"], [/운행중/g, "운행 중"], [/이동중/g, "이동 중"],
+  [/하역중/g, "하역 중"], [/점검중/g, "점검 중"], [/대기중/g, "대기 중"],
+  [/입은거|입은 거/g, "입은 것"], [/한거|한 거/g, "한 것"],
 ];
-function tidySentence(text){
-  let t = String(text || "").trim();
-  if (!t) return "";
-  TIDY_WORDS.forEach(([re, to]) => { t = t.replace(re, to); });
-  /* 문장 끝을 '~하였습니다.' 로 맞춥니다 */
-  t = t.split(/(?<=[.!?。])\s+|\n+/).map(line => {
-    let x = line.trim();
-    if (!x) return "";
-    x = x.replace(/[.\s]+$/, "");
-    if (!x) return "";
-    if (/(습니다|입니다|됩니다|합니다)$/.test(x)) return x + ".";
-    if (/(했다|하였다)$/.test(x)) return x.replace(/(했다|하였다)$/, "하였습니다") + ".";
-    if (/(이다|였다|있다)$/.test(x)) return x.replace(/(이다|였다|있다)$/, "입니다") + ".";
-    if (/(함|됨|짐)$/.test(x)) return x.replace(/함$/, "하였습니다").replace(/됨$/, "되었습니다")
-      .replace(/짐$/, "졌습니다") + ".";
-    return x + ".";
-  }).filter(Boolean).join(" ");
-  return t.replace(/\s{2,}/g, " ").trim();
+/* 보고서에 어울리지 않는 구어체 — 뜻은 그대로 두고 표현만 바꿉니다 */
+const STYLE_MAP = [
+  [/\bcntr\b|\bCNTR\b/g, "컨테이너"],
+  [/\bT\/?C\b/g, "T/C"], [/\bG\/?C\b/g, "G/C"],
+  [/\bR\/?S\b/g, "R/S"], [/\bY\/?T\b/g, "Y/T"],
+  [/부딪혔|부딪쳤|박았|들이받았/g, "접촉하였"],
+  [/부딪침|박음|들이받음/g, "접촉함"],
+  [/찌그러졌/g, "변형되었"], [/찌그러짐/g, "변형됨"],
+  [/(?:^|\s)(그냥|대충|어떻게든|좀)\s/g, " "],
+  [/암튼|아무튼|여하튼/g, ""],
+  [/[ \t]{2,}/g, " "],
+];
+/* 추측·과장으로 읽힐 수 있는 표현 — 고치지 않고 사용자에게 알려만 줍니다 */
+const HEDGE_WORDS = ["같습니다", "같음", "듯", "보임", "보입니다", "추정", "아마",
+  "인 것 같", "심한", "심하게", "엄청", "완전히", "매우", "굉장히", "거의", "약간"];
+
+/* 한 문장을 '~하였습니다' 형태로 맞춥니다. 내용은 건드리지 않습니다. */
+/* 자주 나오는 끝맺음은 따로 잡습니다 — 뭉뚱그린 규칙만 두면 '같었습니다' 같은 말이 나옵니다 */
+const ENDING_MAP = [
+  [/같음$/, "같습니다"], [/같았음$/, "같았습니다"],
+  [/긁음$|긁힘$/, "긁혔습니다"],
+  [/없음$/, "없었습니다"], [/있음$/, "있었습니다"],
+  [/하였$/, "하였습니다"], [/되었$/, "되었습니다"], [/였$/, "였습니다"],
+  [/발생$/, "발생하였습니다"], [/파손$/, "파손되었습니다"], [/손상$/, "손상되었습니다"],
+];
+function endingOf(line){
+  let x = String(line).trim().replace(/[.\s]+$/, "");
+  if (!x) return "";
+  if (/(습니다|입니다|됩니다|합니다)$/.test(x)) return x + ".";
+  for (const [re, to] of ENDING_MAP) if (re.test(x)) return x.replace(re, to) + ".";
+  if (/했음$|하였음$/.test(x))   return x.replace(/했음$|하였음$/, "하였습니다") + ".";
+  if (/됐음$|되었음$/.test(x))   return x.replace(/됐음$|되었음$/, "되었습니다") + ".";
+  if (/했다$|하였다$/.test(x))   return x.replace(/했다$|하였다$/, "하였습니다") + ".";
+  if (/됐다$|되었다$/.test(x))   return x.replace(/됐다$|되었다$/, "되었습니다") + ".";
+  if (/이다$|였다$/.test(x))     return x.replace(/이다$|였다$/, "입니다") + ".";
+  if (/있다$/.test(x))           return x.replace(/있다$/, "있습니다") + ".";
+  if (/없다$/.test(x))           return x.replace(/없다$/, "없습니다") + ".";
+  if (/함$/.test(x))             return x.replace(/함$/, "하였습니다") + ".";
+  if (/됨$/.test(x))             return x.replace(/됨$/, "되었습니다") + ".";
+  if (/짐$/.test(x))             return x.replace(/짐$/, "졌습니다") + ".";
+  if (/음$/.test(x))             return x.replace(/음$/, "었습니다") + ".";
+  return x + ".";
+}
+
+/* 사용자가 쓴 경위를 다듬어 돌려줍니다.
+   { text, changes:[{kind, from, to}], hedges:[표현] } */
+function refineEvent(raw){
+  const src = String(raw == null ? "" : raw);
+  const changes = [];
+  let t = src.replace(/\r\n/g, "\n").trim();
+  if (!t) return { text:"", changes:[], hedges:[] };
+
+  const apply = (rules, kind) => {
+    rules.forEach(([re, to]) => {
+      t = t.replace(re, (m) => {
+        const out = typeof to === "string" ? m.replace(re, to) : to;
+        const a = m.trim(), b = String(out).trim();
+        if (a && a !== b) changes.push({ kind, from:a, to:b || "(삭제)" });
+        return out;
+      });
+    });
+  };
+  apply(TYPO_MAP, "표기");
+  apply(STYLE_MAP, "표현");
+
+  /* 문장 단위로 끊어 종결어미를 맞춥니다. 문장을 합치거나 지우지 않습니다. */
+  const before = t;
+  const lines = t.split(/\n+/).map(b => b.trim()).filter(Boolean);
+  t = lines.map(block =>
+    block.split(/(?<=[.!?。])\s+/).map(x => endingOf(x)).filter(Boolean).join(" ")
+  ).join("\n");
+  if (t !== before) changes.push({ kind:"문체", from:"문장 끝맺음", to:"~하였습니다 형태로 통일" });
+
+  t = t.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+
+  const hedges = HEDGE_WORDS.filter(w => src.indexOf(w) >= 0);
+  return { text:t, changes, hedges };
 }
 
 /* ── shadcn 스타일 프리미티브 ───────────────────────────────── */
@@ -1220,12 +1252,6 @@ function Drawer(p){
         h(Fld, { l:"귀책 장비·직군", v:r.dept ? r.dept + " " + (DEPT_N[r.dept] || "") : "" }),
         h(Fld, { l:"발생 장소", v:r.place }),
         h(Fld, { l:"사고 경위 (Event)", v:r.event }),
-        (r.event || "").trim() && !r.eventOk
-          ? D("py-2 flex items-center gap-2 text-[11.5px]",
-              S({ className:"rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10.5px] font-bold" },
-                "경위 검토 전"),
-              S("text-muted-foreground", "추천 초안 상태입니다. [수정] 에서 내용을 확인하고 확정하십시오."))
-          : null,
 
         /* 피해 상황 — 대인 / 대물 / 기타 */
         HARMS.some(k => ((r.harm || {})[k] || {}).on) ? D("py-3 border-b border-border/60",
@@ -1306,7 +1332,8 @@ function FormDialog(p){
   const [busy, setBusy] = useState(false);
   const [ri, setRi] = useState(0);
   const [autoNo, setAutoNo] = useState(!p.init._id);
-  const [evPrev, setEvPrev] = useState(null);   // 경위서 되돌리기용 직전 본문
+  const [evPrev, setEvPrev] = useState(null);   // 경위 되돌리기용 직전 본문
+  const [review, setReview] = useState(null);   // 검토용 경위 {text, changes, hedges} — 저장하지 않습니다
   const set = (k, v) => setD(prev => Object.assign({}, prev, { [k]: v }));
 
   const LS  = p.lists || {};
@@ -1325,22 +1352,27 @@ function FormDialog(p){
   }, [autoNo, d.grp, d.date, p.rows]);
 
   /* 사고 경위 → 사고구분 자동 추천 (규칙 기반). 확정 경위가 있으면 그것을, 없으면 간단 입력을 읽습니다 */
-  /* 분류 근거는 사용자가 직접 쓴 원문 — 생성된 초안에는 장비명이 끼어들어 오분류가 납니다 */
-  const hintSrc   = String(d.eventMemo || "").trim() || String(d.event || "");
+  const hintSrc   = String(d.event || "");
   const typeHint  = useMemo(() => suggestType(hintSrc, d), [hintSrc, d.harm]);
   const shapeHint = useMemo(() => suggestShape(hintSrc), [hintSrc]);
+  /* 검토용 본문 기준 추천 구분 — 확정할 때 적용됩니다 */
+  const reviewType = useMemo(() => review ? suggestType(review.text, d) : "",
+    [review && review.text, d.harm]);
 
-  /* [경위 검증] — 초안을 만들고, 사고구분도 경위 기준으로 자동 지정합니다.
-     둘 다 사용자가 그대로 고칠 수 있으며 확정은 사용자가 누릅니다. */
+  /* [검증] — 사용자가 쓴 내용은 그대로 두고 표기·문체·흐름만 손봅니다.
+     결과는 아래 '검토용 경위' 에만 보여주고, 확정을 눌러야 입력란에 들어갑니다. */
   function runVerify(){
+    const r = refineEvent(d.event);
+    if (!r.text) return;
+    setReview(r);
+  }
+  /* 확정 — 검토용 본문을 사고 경위란에 그대로 채워 넣습니다(저장 대상은 event 하나) */
+  function confirmReview(){
+    if (!review) return;
     setEvPrev(d.event);
-    const draft = draftEvent(d);
-    const t = suggestType(hintSrc, d);
-    setD(prev => Object.assign({}, prev, {
-      event: draft,
-      eventOk: false,
-      type: t || prev.type,
-    }));
+    const t = suggestType(review.text, d);
+    setD(prev => Object.assign({}, prev, { event: review.text, type: t || prev.type }));
+    setReview(null);
   }
 
   const dmgMap = {}; (d.dmg || []).forEach(x => dmgMap[x.cat] = x);
@@ -1548,74 +1580,84 @@ function FormDialog(p){
 
         /* ── 사고 경위 및 피해 상황 ────────────────── */
         Grp("사고 경위 및 피해 상황", null,
-          /* ── 1단계 · 사고 내용을 아는 대로 간단히 적습니다 ───────── */
+          /* ── 사고 경위 — 임시로 적고 [검증] 으로 다듬어 확정합니다 ───── */
           D(null,
-            D("flex flex-wrap items-baseline gap-1.5 mb-1.5",
-              h(Lbl, { for:"i-memo" }, "① 사고 내용 간단 입력"),
+            D("flex flex-wrap items-center gap-1.5 mb-1.5",
+              h(Lbl, { for:"i-event" }, "사고 경위 (개요)"),
               S("text-[11px] text-muted-foreground",
-                "문장을 다듬지 말고 들은 대로 적으십시오. 아래에서 보고서 문장으로 바꿔 줍니다.")),
-            h(Txt, { id:"i-memo", value:d.eventMemo,
-              onChange:e => set("eventMemo", e.target.value),
-              className:"min-h-[92px]",
-              placeholder:"예) TC274 운전원이 컨테이너 내리다가 옆 박스 모서리 긁음. 다친 사람은 없음." }),
-            D("flex flex-wrap items-center gap-1.5 mt-2",
-              h(Btn, { v:"primary", sz:"sm", icon:"check",
-                disabled:!String(d.eventMemo || "").trim() && !String(d.event || "").trim(),
-                title:"간단 입력과 위에 적은 일시·장소·장비·피해를 엮어 경위 초안을 만듭니다",
-                onClick:runVerify }, "경위 검증"),
-              h(Btn, { sz:"sm", icon:"pen-line", disabled:!String(d.event || "").trim(),
-                title:"지금 경위 본문의 구어체·약어만 보고서 문체로 정리합니다",
-                onClick:() => { setEvPrev(d.event); set("event", tidySentence(d.event)); set("eventOk", false); } },
-                "문장만 다듬기"),
-              evPrev != null
-                ? h(Btn, { sz:"sm", icon:"refresh-cw", title:"직전 내용으로 되돌립니다",
-                    onClick:() => { set("event", evPrev); setEvPrev(null); } }, "되돌리기")
-                : null)),
-
-          /* ── 2단계 · 추천 초안을 검토하고 고칩니다 ───────────────── */
-          D({ className:cls("mt-3 rounded-lg border p-3",
-                d.eventOk ? "border-border bg-card" : "border-primary bg-accent/60") },
-            D("flex flex-wrap items-center gap-2 mb-1.5",
-              h(Lbl, { for:"i-event" }, "② 사고 경위 (최종 저장본)"),
-              S({ className:cls("rounded-full px-2 py-0.5 text-[10.5px] font-bold",
-                  d.eventOk ? "bg-ok text-ok-foreground" : "bg-primary text-primary-foreground") },
-                d.eventOk ? "확정" : "검토 필요"),
-              D("ml-auto flex items-center gap-1.5",
-                !d.eventOk && String(d.event || "").trim()
-                  ? h(Btn, { v:"ok", sz:"sm", icon:"circle-check-big",
-                      title:"이 내용을 최종 경위로 확정합니다",
-                      onClick:() => set("eventOk", true) }, "이 내용으로 확정")
-                  : null,
-                d.eventOk
-                  ? h(Btn, { v:"ghost", sz:"sm", icon:"pencil",
-                      onClick:() => set("eventOk", false) }, "다시 검토")
+                "아는 대로 적으십시오. 문장은 [검증] 으로 다듬습니다."),
+              D("ml-auto flex flex-wrap items-center gap-1.5",
+                h(Btn, { v:"primary", sz:"sm", icon:"check",
+                  disabled:!String(d.event || "").trim(),
+                  title:"적으신 내용은 그대로 두고 표기·문체·흐름만 다듬어 보여줍니다",
+                  onClick:runVerify }, "검증"),
+                evPrev != null
+                  ? h(Btn, { sz:"sm", icon:"refresh-cw", title:"확정 직전 내용으로 되돌립니다",
+                      onClick:() => { set("event", evPrev); setEvPrev(null); } }, "되돌리기")
                   : null)),
             h(Txt, { id:"i-event", value:d.event,
-              onChange:e => set("event", e.target.value),
-              className:"min-h-[136px] bg-card",
-              placeholder:"‘경위 검증’을 누르면 추천 초안이 여기에 들어옵니다. 그대로 고쳐 쓰셔도 됩니다." }),
-            D("text-[11px] text-muted-foreground mt-1.5",
-              d.eventOk
-                ? "확정된 본문입니다. 다시 고치려면 위 ‘다시 검토’ 를 누르십시오. 저장하면 이 내용이 그대로 들어갑니다."
-                : "추천 초안입니다. 이 칸에서 자유롭게 고친 뒤 ‘이 내용으로 확정’ 을 누르십시오. "
-                  + "확정하지 않아도 저장은 되지만, 목록에 ‘경위 검토 전’ 으로 표시됩니다."),
+              onChange:e => { set("event", e.target.value); if (review) setReview(null); },
+              className:"min-h-[136px]",
+              placeholder:"예) TC274 운전원이 컨테이너 내리다가 옆 박스 모서리 긁음. 다친 사람은 없음." }),
+            D("text-[11px] text-muted-foreground mt-1",
+              "이 칸의 내용이 그대로 저장됩니다. 보험 접수 여부와 과실 비율은 위쪽 항목에서 따로 관리하므로 "
+              + "여기에는 사고 경위와 상황만 적으십시오."),
 
-            /* 사고구분 — 추천 경위를 기준으로 자동 지정, 최종 확인은 사용자가 */
-            D("mt-3 pt-3 border-t border-border/60",
-              D("flex flex-wrap items-center gap-2",
-                S("text-[11.5px] font-bold text-foreground", "③ 사고구분"),
-                S({ className:"rounded-md border border-border bg-card px-2.5 py-1 text-[12.5px] font-medium" },
-                  d.type || "미지정"),
-                typeHint && typeHint !== d.type
-                  ? h(Btn, { sz:"sm", icon:"refresh-cw",
-                      title:"경위 본문을 다시 읽어 사고구분을 바꿉니다",
-                      onClick:() => set("type", typeHint) }, typeHint + " 로 변경")
-                  : null,
-                shapeHint ? S("text-[11px] text-muted-foreground", "· " + shapeHint + " 형태") : null),
-              D("text-[11px] text-muted-foreground mt-1.5",
-                typeHint && typeHint !== d.type
-                  ? "경위 내용은 ‘" + typeHint + "’ 에 가깝습니다. 맞으면 위 버튼을, 아니면 그대로 두십시오."
-                  : "경위를 검증하면 자동으로 지정됩니다. 위쪽 ‘사고구분’ 칸에서 직접 고를 수도 있습니다."))),
+            /* 검토용 경위 — 확정을 눌러야 위 입력란에 들어갑니다. 그 전에는 저장되지 않습니다 */
+            review ? D("mt-3 rounded-lg border border-primary bg-accent/60 p-3",
+              D("flex flex-wrap items-center gap-2 mb-2",
+                S("text-[12px] font-bold text-foreground", "검토용 경위 (추천)"),
+                S({ className:"rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10.5px] font-bold" },
+                  "확정 전"),
+                S("text-[11px] text-muted-foreground",
+                  "적으신 사실은 그대로 두고 표기·문체만 손봤습니다. 여기서 더 고치셔도 됩니다.")),
+
+              h(Txt, { id:"i-event-review", value:review.text,
+                onChange:e => setReview(Object.assign({}, review, { text:e.target.value })),
+                className:"min-h-[136px] bg-card" }),
+
+              review.changes.length
+                ? D("mt-2",
+                    D("text-[11px] font-bold text-foreground mb-1",
+                      "고친 곳 " + review.changes.length + "군데"),
+                    D("flex flex-wrap gap-1.5",
+                      review.changes.slice(0, 12).map((c, k) =>
+                        S({ key:k, className:"inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px]" },
+                          S("text-muted-foreground", c.kind), c.from, "→", S("font-medium", c.to)))))
+                : D("mt-2 text-[11px] text-muted-foreground", "고칠 곳이 없었습니다. 그대로 확정하셔도 됩니다."),
+
+              review.hedges.length
+                ? D({ className:"mt-2 rounded-md border px-2.5 py-1.5 text-[11px]",
+                      style:{ borderColor:"hsl(var(--warn))", background:"var(--warn-bg)", color:"var(--warn-ink)" } },
+                    "확인이 필요한 표현: ", S("font-medium", review.hedges.join(" · ")),
+                    " — 추측이나 과장으로 읽힐 수 있습니다. 확인된 사실만 남기십시오.")
+                : null,
+
+              D("flex flex-wrap items-center gap-1.5 mt-3",
+                h(Btn, { v:"ok", sz:"sm", icon:"circle-check-big",
+                  title:"이 내용을 위 사고 경위란에 그대로 채워 넣습니다",
+                  onClick:confirmReview }, "이 내용으로 확정"),
+                h(Btn, { v:"ghost", sz:"sm", icon:"x",
+                  onClick:() => setReview(null) }, "취소"),
+                reviewType && reviewType !== d.type
+                  ? S("text-[11px] text-muted-foreground ml-1",
+                      "확정하면 사고구분이 ‘" + reviewType + "’ 로 지정됩니다(나중에 바꿀 수 있습니다).")
+                  : null))
+            : null),
+
+          /* 사고구분 — 경위를 기준으로 추천하고, 최종 선택은 사용자가 합니다 */
+          D("mt-3 flex flex-wrap items-center gap-2",
+            S("text-[11.5px] font-bold text-foreground", "사고구분"),
+            S({ className:"rounded-md border border-border bg-card px-2.5 py-1 text-[12.5px] font-medium" },
+              d.type || "미지정"),
+            typeHint && typeHint !== d.type
+              ? h(Btn, { sz:"sm", icon:"refresh-cw",
+                  title:"경위 본문을 다시 읽어 사고구분을 바꿉니다",
+                  onClick:() => set("type", typeHint) }, typeHint + " 로 변경")
+              : null,
+            shapeHint ? S("text-[11px] text-muted-foreground", "· " + shapeHint + " 형태") : null,
+            S("text-[11px] text-muted-foreground", "위쪽 ‘사고구분’ 칸에서 직접 고를 수도 있습니다.")),
+
           /* 보험 접수 여부 — 피해 상황 앞에 둡니다 */
           D("mt-3",
             D("text-[11.5px] font-bold text-foreground mb-2", "보험 접수 여부"),
