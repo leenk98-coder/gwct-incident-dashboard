@@ -292,6 +292,7 @@ function blankIncident(){
     harm:{ "대인":{on:false,txt:""}, "대물":{on:false,txt:""}, "재산":{on:false,txt:""}, "기타":{on:false,txt:""} },
     line:"", lineContact:"", cargo:"",
     dmg:[], dmgTotal:0, finTotal:0, pay:[], paidTotal:0,
+    eventMemo:"", eventOk:false,
     insFiled:false, faultPct:"",
     insNo:"", insPaid:0, deductible:0, surveyor:"",
     costDetail:"", progress:"", owner:"", release:"",
@@ -322,6 +323,9 @@ function withDefaults(r){
   /* 나중에 추가한 항목 — 예전 레코드에는 없으므로 기본값으로 채웁니다 */
   if (o.insFiled == null) o.insFiled = !!(o.insNo || o.insPaid);
   if (o.faultPct == null) o.faultPct = "";
+  if (o.eventMemo == null) o.eventMemo = "";
+  /* 예전 46건은 이미 사람이 쓴 확정 경위이므로 검토 완료로 봅니다 */
+  if (o.eventOk == null) o.eventOk = !!(o.event || "").trim();
   if (!Array.isArray(o.files)) o.files = [];
   return o;
 }
@@ -405,6 +409,19 @@ function suggestShape(text){
   return "";
 }
 
+/* 받침에 따라 조사를 붙입니다 — "부주의로" / "불량으로" */
+function hasJong(w){
+  const ch = String(w || "").trim().slice(-1);
+  const c = ch.charCodeAt(0);
+  if (!(c >= 0xAC00 && c <= 0xD7A3)) return null;   // 한글 음절이 아니면 판단 보류
+  return (c - 0xAC00) % 28;                          // 0 = 받침 없음, 8 = ㄹ
+}
+function josaRo(w){
+  const j = hasJong(w);
+  if (j === null) return w + "로";                   // 숫자·영문·기호는 '로'
+  return w + (j === 0 || j === 8 ? "로" : "으로");
+}
+
 /* ── 경위서 초안 ──────────────────────────────────────────────
    입력해 둔 항목(일시·장소·장비·작업자·경위)을 엮어 보고서 문장으로 만듭니다. */
 function draftEvent(d){
@@ -415,8 +432,10 @@ function draftEvent(d){
   const where = (d.place || "").trim();
   const eq = [d.dept && DEPT_N[d.dept] ? DEPT_N[d.dept] : d.dept, d.equip].filter(Boolean).join(" ");
   const who = (d.who || "").trim();
-  const shape = suggestShape(d.event) || "사고";
-  const raw = tidySentence(d.event);
+  /* 간단 입력이 있으면 그것을, 없으면 기존 경위를 원문으로 씁니다 */
+  const src = String(d.eventMemo || "").trim() || String(d.event || "");
+  const shape = suggestShape(src) || "사고";
+  const raw = tidySentence(src);
 
   const s1 = [head, where ? where + "에서" : "", eq ? eq : "", who ? "(" + who + ")" : "",
     "작업 중 " + shape + " 사고가 발생하였습니다."].filter(Boolean).join(" ")
@@ -427,9 +446,9 @@ function draftEvent(d){
 
   const hs = HARMS.filter(k => d.harm && d.harm[k] && d.harm[k].on);
   if (hs.length) parts.push("피해 상황은 " + hs.join(" · ") + " 피해로 확인되었습니다.");
-  if (d.cause) parts.push("사고 원인은 " + d.cause + " 으로 파악됩니다.");
+  if (d.cause) parts.push("사고 원인은 " + josaRo(d.cause) + " 파악됩니다.");
   if (d.faultPct !== "" && d.faultPct != null)
-    parts.push("사고자 과실 비율은 " + d.faultPct + "% 로 산정하였습니다.");
+    parts.push("사고자 과실 비율은 " + d.faultPct + "%로 산정하였습니다.");
   parts.push(d.insFiled ? "본 건은 보험 접수하였으며, 손해사정 결과에 따라 처리할 예정입니다."
     : "본 건은 보험 미접수 건으로, 자체 처리할 예정입니다.");
   return parts.join("\n");
@@ -440,7 +459,6 @@ function draftEvent(d){
 const TIDY_WORDS = [
   [/\b운전자\b/g, "운전원"], [/\b기사님?\b/g, "운전원"],
   [/했음|하였음/g, "하였습니다"], [/됐음|되었음/g, "되었습니다"],
-  [/함\.|함$/g, "합니다."],
   [/\b같음\b/g, "같습니다"],
   [/\b없음\b/g, "없습니다"], [/\b있음\b/g, "있습니다"],
   [/어떻게든|대충|그냥|좀\s/g, ""],
@@ -1202,6 +1220,12 @@ function Drawer(p){
         h(Fld, { l:"귀책 장비·직군", v:r.dept ? r.dept + " " + (DEPT_N[r.dept] || "") : "" }),
         h(Fld, { l:"발생 장소", v:r.place }),
         h(Fld, { l:"사고 경위 (Event)", v:r.event }),
+        (r.event || "").trim() && !r.eventOk
+          ? D("py-2 flex items-center gap-2 text-[11.5px]",
+              S({ className:"rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10.5px] font-bold" },
+                "경위 검토 전"),
+              S("text-muted-foreground", "추천 초안 상태입니다. [수정] 에서 내용을 확인하고 확정하십시오."))
+          : null,
 
         /* 피해 상황 — 대인 / 대물 / 기타 */
         HARMS.some(k => ((r.harm || {})[k] || {}).on) ? D("py-3 border-b border-border/60",
@@ -1300,9 +1324,24 @@ function FormDialog(p){
     if (n !== d.no) setD(prev => Object.assign({}, prev, { no:n }));
   }, [autoNo, d.grp, d.date, p.rows]);
 
-  /* 사고 경위 → 사고구분 자동 추천 (규칙 기반, 값은 바꾸지 않고 제안만 합니다) */
-  const typeHint  = useMemo(() => suggestType(d.event, d), [d.event, d.harm]);
-  const shapeHint = useMemo(() => suggestShape(d.event), [d.event]);
+  /* 사고 경위 → 사고구분 자동 추천 (규칙 기반). 확정 경위가 있으면 그것을, 없으면 간단 입력을 읽습니다 */
+  /* 분류 근거는 사용자가 직접 쓴 원문 — 생성된 초안에는 장비명이 끼어들어 오분류가 납니다 */
+  const hintSrc   = String(d.eventMemo || "").trim() || String(d.event || "");
+  const typeHint  = useMemo(() => suggestType(hintSrc, d), [hintSrc, d.harm]);
+  const shapeHint = useMemo(() => suggestShape(hintSrc), [hintSrc]);
+
+  /* [경위 검증] — 초안을 만들고, 사고구분도 경위 기준으로 자동 지정합니다.
+     둘 다 사용자가 그대로 고칠 수 있으며 확정은 사용자가 누릅니다. */
+  function runVerify(){
+    setEvPrev(d.event);
+    const draft = draftEvent(d);
+    const t = suggestType(hintSrc, d);
+    setD(prev => Object.assign({}, prev, {
+      event: draft,
+      eventOk: false,
+      type: t || prev.type,
+    }));
+  }
 
   const dmgMap = {}; (d.dmg || []).forEach(x => dmgMap[x.cat] = x);
   const payMap = {}; (d.pay || []).forEach(x => payMap[x.payer] = x.amt);
@@ -1509,25 +1548,74 @@ function FormDialog(p){
 
         /* ── 사고 경위 및 피해 상황 ────────────────── */
         Grp("사고 경위 및 피해 상황", null,
+          /* ── 1단계 · 사고 내용을 아는 대로 간단히 적습니다 ───────── */
           D(null,
-            D("flex flex-wrap items-center gap-1.5 mb-1.5",
-              h(Lbl, { for:"i-event" }, "사고 경위 (개요)"),
-              D("ml-auto flex flex-wrap items-center gap-1.5",
-                h(Btn, { sz:"sm", icon:"file-text", title:"입력한 일시·장소·장비·피해로 기본 초안을 만듭니다",
-                  onClick:() => { setEvPrev(d.event); set("event", draftEvent(d)); } }, "초안 생성"),
-                h(Btn, { sz:"sm", icon:"pen-line", disabled:!String(d.event || "").trim(),
-                  title:"구어체·약어를 보고서 문체로 정리합니다",
-                  onClick:() => { setEvPrev(d.event); set("event", tidySentence(d.event)); } }, "문장 다듬기"),
-                evPrev != null
-                  ? h(Btn, { sz:"sm", icon:"refresh-cw", title:"직전 내용으로 되돌립니다",
-                      onClick:() => { set("event", evPrev); setEvPrev(null); } }, "되돌리기")
+            D("flex flex-wrap items-baseline gap-1.5 mb-1.5",
+              h(Lbl, { for:"i-memo" }, "① 사고 내용 간단 입력"),
+              S("text-[11px] text-muted-foreground",
+                "문장을 다듬지 말고 들은 대로 적으십시오. 아래에서 보고서 문장으로 바꿔 줍니다.")),
+            h(Txt, { id:"i-memo", value:d.eventMemo,
+              onChange:e => set("eventMemo", e.target.value),
+              className:"min-h-[92px]",
+              placeholder:"예) TC274 운전원이 컨테이너 내리다가 옆 박스 모서리 긁음. 다친 사람은 없음." }),
+            D("flex flex-wrap items-center gap-1.5 mt-2",
+              h(Btn, { v:"primary", sz:"sm", icon:"check",
+                disabled:!String(d.eventMemo || "").trim() && !String(d.event || "").trim(),
+                title:"간단 입력과 위에 적은 일시·장소·장비·피해를 엮어 경위 초안을 만듭니다",
+                onClick:runVerify }, "경위 검증"),
+              h(Btn, { sz:"sm", icon:"pen-line", disabled:!String(d.event || "").trim(),
+                title:"지금 경위 본문의 구어체·약어만 보고서 문체로 정리합니다",
+                onClick:() => { setEvPrev(d.event); set("event", tidySentence(d.event)); set("eventOk", false); } },
+                "문장만 다듬기"),
+              evPrev != null
+                ? h(Btn, { sz:"sm", icon:"refresh-cw", title:"직전 내용으로 되돌립니다",
+                    onClick:() => { set("event", evPrev); setEvPrev(null); } }, "되돌리기")
+                : null)),
+
+          /* ── 2단계 · 추천 초안을 검토하고 고칩니다 ───────────────── */
+          D({ className:cls("mt-3 rounded-lg border p-3",
+                d.eventOk ? "border-border bg-card" : "border-primary bg-accent/60") },
+            D("flex flex-wrap items-center gap-2 mb-1.5",
+              h(Lbl, { for:"i-event" }, "② 사고 경위 (최종 저장본)"),
+              S({ className:cls("rounded-full px-2 py-0.5 text-[10.5px] font-bold",
+                  d.eventOk ? "bg-ok text-ok-foreground" : "bg-primary text-primary-foreground") },
+                d.eventOk ? "확정" : "검토 필요"),
+              D("ml-auto flex items-center gap-1.5",
+                !d.eventOk && String(d.event || "").trim()
+                  ? h(Btn, { v:"ok", sz:"sm", icon:"circle-check-big",
+                      title:"이 내용을 최종 경위로 확정합니다",
+                      onClick:() => set("eventOk", true) }, "이 내용으로 확정")
+                  : null,
+                d.eventOk
+                  ? h(Btn, { v:"ghost", sz:"sm", icon:"pencil",
+                      onClick:() => set("eventOk", false) }, "다시 검토")
                   : null)),
             h(Txt, { id:"i-event", value:d.event,
-              onChange:e => { set("event", e.target.value); },
-              className:"min-h-[136px]",
-              placeholder:"상기 운전원은 …" }),
-            D("text-[11px] text-muted-foreground mt-1",
-              "자동으로 만든 문장은 기본 초안입니다. 이 칸에서 그대로 고쳐 쓰면 고친 내용이 저장됩니다.")),
+              onChange:e => set("event", e.target.value),
+              className:"min-h-[136px] bg-card",
+              placeholder:"‘경위 검증’을 누르면 추천 초안이 여기에 들어옵니다. 그대로 고쳐 쓰셔도 됩니다." }),
+            D("text-[11px] text-muted-foreground mt-1.5",
+              d.eventOk
+                ? "확정된 본문입니다. 다시 고치려면 위 ‘다시 검토’ 를 누르십시오. 저장하면 이 내용이 그대로 들어갑니다."
+                : "추천 초안입니다. 이 칸에서 자유롭게 고친 뒤 ‘이 내용으로 확정’ 을 누르십시오. "
+                  + "확정하지 않아도 저장은 되지만, 목록에 ‘경위 검토 전’ 으로 표시됩니다."),
+
+            /* 사고구분 — 추천 경위를 기준으로 자동 지정, 최종 확인은 사용자가 */
+            D("mt-3 pt-3 border-t border-border/60",
+              D("flex flex-wrap items-center gap-2",
+                S("text-[11.5px] font-bold text-foreground", "③ 사고구분"),
+                S({ className:"rounded-md border border-border bg-card px-2.5 py-1 text-[12.5px] font-medium" },
+                  d.type || "미지정"),
+                typeHint && typeHint !== d.type
+                  ? h(Btn, { sz:"sm", icon:"refresh-cw",
+                      title:"경위 본문을 다시 읽어 사고구분을 바꿉니다",
+                      onClick:() => set("type", typeHint) }, typeHint + " 로 변경")
+                  : null,
+                shapeHint ? S("text-[11px] text-muted-foreground", "· " + shapeHint + " 형태") : null),
+              D("text-[11px] text-muted-foreground mt-1.5",
+                typeHint && typeHint !== d.type
+                  ? "경위 내용은 ‘" + typeHint + "’ 에 가깝습니다. 맞으면 위 버튼을, 아니면 그대로 두십시오."
+                  : "경위를 검증하면 자동으로 지정됩니다. 위쪽 ‘사고구분’ 칸에서 직접 고를 수도 있습니다."))),
           /* 보험 접수 여부 — 피해 상황 앞에 둡니다 */
           D("mt-3",
             D("text-[11.5px] font-bold text-foreground mb-2", "보험 접수 여부"),
