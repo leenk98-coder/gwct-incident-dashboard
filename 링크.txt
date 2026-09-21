@@ -173,3 +173,29 @@ GWCT 사고·클레임 관리 앱 - 공식 링크
   / max-h-[82vh] / min-w-[760px] / font-sans
 ※ 검증: 스크립트 블록 추출 → node --check → 헤드리스 크롬 기능테스트
   (취소건 숨김 48행↔포함 49행, 연도별 2026=3·2024=46, 기간지정 27/17/3/46행 확인)
+
+📅 2026-09-21 확인창을 앱 모달로 교체 (아티팩트 v39)
+※ 증상: 영구 삭제를 눌러도 아무 일도 일어나지 않음(권한 문제 아님)
+※ 원인: window.confirm / window.prompt 가 막히면 각각 false / null 이 돌아와
+        함수가 메시지 없이 그냥 끝남. 아티팩트는 샌드박스 iframe 이라 이 창들이 차단될 수 있음.
+        같은 코드로 재현 — 차단 시 49행→49행(변화 없음), 정상 시 49행→48행(삭제됨)
+
+- AskHost 컴포넌트 + ask() 신설 (Promise 반환). App 트리 맨 뒤에 항상 렌더.
+  브라우저 기본 대화상자를 쓰지 않으므로 어느 환경에서도 동작함.
+    const ok  = await ask({ title, message, danger:true });            → true / null
+    const why = await ask({ ..., input:{ label, fallback:"경미건" } });  → 문자열 / null
+- 교체한 4곳
+    1) 영구 삭제        window.confirm → 앱 모달(빨간 경고)
+    2) 사고 취소        window.prompt  → 앱 모달 + 취소 사유 입력칸(기본 '경미건')
+    3) 첨부 삭제        window.confirm → 앱 모달
+    4) JSON 가져오기 덮어쓰기
+       건마다 confirm 을 N번 띄우던 것을 → 한 번만 묻고 [덮어쓰기]/[건너뛰기] 선택
+       건너뛴 건수를 완료 메시지에 표시
+- 삭제·취소 실패 시 flash() 로 오류를 띄움(이전에는 조용히 실패)
+- window.confirm / prompt / alert 사용처: 0곳 (전량 제거됨)
+- 보충 <style> 에 추가: pb-2 / whitespace-pre-line / max-w-[460px] / text-[14.5px]
+  (whitespace-pre-line 이 없으면 모달 메시지의 줄바꿈이 보이지 않음)
+
+※ 검증: 브라우저 기본 대화상자를 강제로 차단한 상태에서
+   영구삭제 49→48행, 사고취소 48→47행, 이력에 접속 IP·사유 기록 확인,
+   confirm/prompt 호출 0회. 기간 필터 회귀 검사도 통과.
