@@ -131,6 +131,16 @@ body{
 .overflow-auto{overflow:auto}
 @media (min-width:640px){ .sm\:inline{display:inline} }
 .hover\:text-destructive:hover{color:hsl(var(--destructive))}
+/* 2026-09-21 추가 — 소프트 삭제·권한·수정이력·조회기간 화면용 */
+.gap-1{gap:.25rem}
+.w-8{width:2rem}
+.opacity-60{opacity:.6}
+.line-through{text-decoration-line:line-through}
+.border-ring{border-color:hsl(var(--ring))}
+.bg-ok\/10{background-color:hsl(var(--ok)/.1)}
+.max-h-\[82vh\]{max-height:82vh}
+.min-w-\[760px\]{min-width:760px}
+.font-sans{font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,"Segoe UI",sans-serif}
 </style>
 
 
@@ -609,6 +619,44 @@ function amt(n){
 const ymd = d => (d ? d.slice(2).replace(/-/g, ".") : "—");
 const nowISO = () => new Date().toISOString();
 const yearOf = r => (r.date || "").slice(0, 4);
+/* ═══════════ 조회 기간 ═══════════
+   세 가지만 씁니다.
+     all   — 전체 누적
+     year  — 특정 연도 (1월 1일 ~ 12월 31일)
+     range — 시작일자 ~ 종료일자 직접 지정 (한쪽만 넣으면 그쪽만 제한) */
+const ALL_PERIOD = { mode:"all", year:"", from:"", to:"" };
+
+function inPeriod(r, p){
+  if (!p || p.mode === "all") return true;
+  const d = (r.date || "").slice(0, 10);
+  if (p.mode === "year"){
+    if (!p.year) return true;
+    return d.slice(0, 4) === String(p.year);
+  }
+  if (p.mode === "range"){
+    if (!p.from && !p.to) return true;
+    if (!d) return false;
+    if (p.from && d < p.from) return false;
+    if (p.to && d > p.to) return false;
+    return true;
+  }
+  return true;
+}
+
+/* 화면·파일이름에 쓸 기간 표기 */
+function periodLabel(p){
+  if (!p || p.mode === "all") return "전체";
+  if (p.mode === "year") return p.year ? p.year + "년" : "전체";
+  if (!p.from && !p.to) return "전체";
+  return (p.from || "처음") + "~" + (p.to || "오늘");
+}
+/* 파일이름용 — 금지문자 없이 */
+function periodTag(p){
+  if (!p || p.mode === "all") return "전체";
+  if (p.mode === "year") return p.year || "전체";
+  if (!p.from && !p.to) return "전체";
+  return (p.from || "처음").replace(/-/g, "") + "_" + (p.to || "오늘").replace(/-/g, "");
+}
 const monthOf = r => Number((r.date || "").slice(5, 7)) || 0;
 const sumBy = (a, f) => a.reduce((t, x) => t + (Number(f(x)) || 0), 0);
 const cls = (...a) => a.filter(Boolean).join(" ");
@@ -631,6 +679,10 @@ function blankIncident(){
     rounds:[blankRound("초기")],
     files:[],
     status:"접수", closedAt:"", log:[],
+    /* 소프트 삭제 — 사고번호 연속성을 지키려고 지우지 않고 '취소' 표시만 합니다 */
+    canceled:false, cancelAt:"", cancelBy:"", cancelIp:"", cancelReason:"",
+    /* 수정 이력 — [{ts, by, dept, ip, act, changes:[{k,label,from,to}]}] */
+    audit:[],
   };
 }
 /* 기존 46건에는 없는 항목을 화면에서만 기본값으로 채웁니다(데이터는 건드리지 않습니다) */
@@ -656,8 +708,16 @@ function withDefaults(r){
   if (o.insFiled == null) o.insFiled = !!(o.insNo || o.insPaid);
   if (o.faultPct == null) o.faultPct = "";
   if (!Array.isArray(o.files)) o.files = [];
+  if (o.canceled == null) o.canceled = false;
+  if (o.cancelAt == null) o.cancelAt = "";
+  if (o.cancelBy == null) o.cancelBy = "";
+  if (o.cancelIp == null) o.cancelIp = "";
+  if (o.cancelReason == null) o.cancelReason = "";
+  if (!Array.isArray(o.audit)) o.audit = [];
   return o;
 }
+/* 취소(소프트 삭제)된 건인지 — 목록·통계에서 기본으로 숨깁니다 */
+const isCanceled = r => !!(r && r.canceled);
 function roundLabel(rounds, i){
   const r = rounds[i];
   if (!r) return "";
@@ -683,6 +743,164 @@ function docId(no){
   const tail = s.split(/[-\s]/).pop();
   const yy = (s.match(/(\d{2})-/) || [,"00"])[1];
   return "sub" + yy + "-" + tail;
+}
+
+/* ═══════════ 권한 · 작성자 · 접속 IP ═══════════
+   권한은 두 갈래로 정해집니다.
+   1) Claude 아티팩트에서 열었을 때 — 공유 등급을 서버가 알려주므로 그대로 씁니다.
+      (소유자=최고 관리자 / 편집 가능=작성·수정 / 그 외=읽기 전용)
+   2) 그 밖(사내 웹주소·내 PC 파일) — 서버가 없어 강제할 수 없으므로
+      이 브라우저에 저장된 설정을 씁니다. 조작 방지가 아니라 실수 방지용입니다. */
+const ROLE = { READ:"읽기 전용", WRITE:"작성·수정", ADMIN:"최고 관리자" };
+const ROLE_KEYS = ["READ", "WRITE", "ADMIN"];
+const ID_KEY = "gwct_identity";
+
+/* 접속 IP 조회 주소 — 사내 조회 주소가 있으면 맨 앞에 넣으십시오.
+   브라우저는 자기 IP를 스스로 알 수 없어 외부에 물어봐야 합니다.
+   사내망이라 막혀 있으면 조용히 실패하고 '미확인'으로 남습니다. */
+const IP_ENDPOINTS = [
+  /* "http://사내주소/ip", */
+  "https://api.ipify.org?format=json",
+  "https://ipapi.co/json/",
+];
+
+function loadIdentity(){
+  try { return JSON.parse(localStorage.getItem(ID_KEY) || "{}") || {}; }
+  catch (e) { return {}; }
+}
+function saveIdentity(v){
+  try { localStorage.setItem(ID_KEY, JSON.stringify(v)); } catch (e) {}
+}
+
+async function fetchIp(){
+  for (const url of IP_ENDPOINTS){
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 2500);
+      const res = await fetch(url, { signal: ctl.signal, cache: "no-store" });
+      clearTimeout(t);
+      if (!res.ok) continue;
+      const j = await res.json();
+      const ip = j && (j.ip || j.query || j.client_ip);
+      if (ip) return String(ip);
+    } catch (e) { /* 막혀 있으면 다음 주소 */ }
+  }
+  return "";
+}
+
+function useIdentity(){
+  const [st, setSt] = useState(() => {
+    const s = loadIdentity();
+    return { role:s.role || "WRITE", name:s.name || "", dept:s.dept || "",
+             ip:s.ip || "", ipManual:!!s.ipManual, server:false, ready:false };
+  });
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      /* ① 아티팩트 공유 등급에서 권한 읽기 */
+      let role = null, server = false;
+      try {
+        const u = window.claude && window.claude.use ? await window.claude.use("user") : null;
+        if (u){
+          server = true;
+          if (u.isOwner && u.isOwner()) role = "ADMIN";
+          else {
+            const w = u.can ? u.can("data.write") : null;
+            role = w === false ? "READ" : (w === true ? "WRITE" : (u.canEdit && u.canEdit() ? "WRITE" : "READ"));
+          }
+          /* 이름을 알려주면 작성자 기본값으로 씁니다 */
+          try {
+            const me = u.me ? await u.me() : null;
+            if (me && me.name && live) setSt(p => p.name ? p : Object.assign({}, p, { name: me.name }));
+          } catch (e) {}
+        }
+      } catch (e) {}
+
+      /* ② 접속 IP — 직접 입력해 둔 값이 있으면 그것을 씁니다 */
+      const cur = loadIdentity();
+      let ip = cur.ipManual ? (cur.ip || "") : "";
+      if (!ip) ip = await fetchIp();
+      if (!live) return;
+      setSt(p => {
+        const next = Object.assign({}, p, { ip: ip || p.ip, server, ready:true },
+          role ? { role } : {});
+        saveIdentity({ role: next.role, name: next.name, dept: next.dept,
+                       ip: next.ip, ipManual: next.ipManual });
+        return next;
+      });
+    })();
+    return () => { live = false; };
+  }, []);
+
+  const update = patch => setSt(p => {
+    const next = Object.assign({}, p, patch);
+    saveIdentity({ role: next.role, name: next.name, dept: next.dept,
+                   ip: next.ip, ipManual: next.ipManual });
+    return next;
+  });
+
+  return {
+    role: st.role, roleLabel: ROLE[st.role] || ROLE.READ,
+    name: st.name, dept: st.dept, ip: st.ip,
+    ipManual: st.ipManual, server: st.server, ready: st.ready,
+    canWrite: st.role === "WRITE" || st.role === "ADMIN",
+    isAdmin: st.role === "ADMIN",
+    update,
+  };
+}
+
+/* ═══════════ 수정 이력 (Audit Log) ═══════════ */
+const AUDIT_LABEL = {
+  no:"사고번호", grp:"소속 구분", vendor:"도급업체", type:"사고구분", date:"발생일자", time:"발생시각",
+  place:"발생장소", dept:"소속", equip:"장비명", who:"귀책자", cause:"사고원인", blame:"귀책",
+  summary:"사고요약", event:"사고경위", line:"선사", lineContact:"선사 담당자", cargo:"화주",
+  dmgTotal:"피해예상 합계", finTotal:"확정 금액", paidTotal:"총 지급액",
+  insFiled:"보험 접수 여부", faultPct:"과실 비율", insNo:"보험 접수번호", insPaid:"보험 지급액",
+  deductible:"자기부담금", surveyor:"손해사정인", costDetail:"비용 처리 내역",
+  progress:"처리 현황", owner:"담당자", release:"릴리스레터/합의서", status:"진행 단계",
+  closedAt:"종결일자", canceled:"사고 취소", cancelReason:"취소 사유",
+  harm:"피해 상황", dmg:"피해 내역", pay:"지급 내역", rounds:"보고 회차", files:"첨부",
+};
+/* 이력에 담지 않는 항목 — 이력 자체나 자동 파생값 */
+const AUDIT_SKIP = { audit:1, log:1, _id:1, createdAt:1, updatedAt:1, cancelAt:1, cancelBy:1, cancelIp:1 };
+
+function auditShow(v){
+  if (v == null || v === "") return "(없음)";
+  if (typeof v === "boolean") return v ? "예" : "아니오";
+  if (Array.isArray(v)) return v.length + "건";
+  if (typeof v === "object") return "내용 변경";
+  const s = String(v);
+  return s.length > 60 ? s.slice(0, 60) + "…" : s;
+}
+
+/* 이전 ↔ 이후를 비교해 바뀐 항목만 뽑습니다 */
+function diffRec(prev, next){
+  const out = [];
+  if (!prev) return out;
+  const keys = new Set(Object.keys(prev).concat(Object.keys(next)));
+  keys.forEach(k => {
+    if (AUDIT_SKIP[k]) return;
+    const a = prev[k], b = next[k];
+    const sa = typeof a === "object" && a !== null ? JSON.stringify(a) : a;
+    const sb = typeof b === "object" && b !== null ? JSON.stringify(b) : b;
+    if (sa === sb) return;
+    if ((sa == null || sa === "") && (sb == null || sb === "")) return;
+    out.push({ k, label: AUDIT_LABEL[k] || k, from: auditShow(a), to: auditShow(b) });
+  });
+  return out;
+}
+
+/* 이력 한 줄 만들기 */
+function auditEntry(id, act, changes){
+  return {
+    ts: nowISO(),
+    by: (id.name || "").trim() || "미기재",
+    dept: (id.dept || "").trim(),
+    ip: id.ip || "",
+    act: act,
+    changes: changes || [],
+  };
 }
 
 /* ═══════════ 사고구분 자동 추천 · 경위서 정리 (규칙 기반) ═══════════
@@ -1448,6 +1666,15 @@ function IncidentTable(p){
           options:[{ v:"", l:"소속 전체" }].concat(DEPTS.map(d => ({ v:d, l:d + " " + DEPT_N[d] }))) }),
         h(Sel, { id:"f-status", value:f.status, onChange:e => set("status", e.target.value), className:"w-auto flex-1 min-w-0",
           options:[{ v:"", l:"상태 전체" }, { v:"진행중", l:"진행 중 전체" }].concat(STAGES.map(s => ({ v:s, l:s }))) })),
+      /* 취소건 포함 보기 — 소프트 삭제된 건은 기본으로 숨깁니다 */
+      p.setShowCanceled ? h("label", {
+        className:cls("inline-flex items-center gap-1.5 h-9 px-2.5 rounded-md cursor-pointer select-none",
+          "text-[12.5px] border border-input bg-card whitespace-nowrap",
+          p.showCanceled ? "border-ring" : "") },
+        h("input", { type:"checkbox", checked:!!p.showCanceled, className:"w-3.5 h-3.5",
+          onChange:e => p.setShowCanceled(e.target.checked) }),
+        "취소건 포함",
+        p.nCanceled ? S("font-medium", " " + p.nCanceled) : null) : null,
       h(Btn, { v:"ghost", sz:"sm", icon:"refresh-cw",
         onClick:() => p.setF({ type:"", dept:"", status:"", q:"" }) }, "초기화"),
       h(Btn, { sz:"sm", icon:"table", onClick:() => p.onCsv(rows), className:"ml-auto" },
@@ -1462,8 +1689,12 @@ function IncidentTable(p){
           h("tbody", null, rows.map(r => h("tr", { key:r._id, tabIndex:0,
             onClick:() => p.onOpen(r),
             onKeyDown:e => { if (e.key === "Enter"){ e.preventDefault(); p.onOpen(r); } },
-            className:"cursor-pointer hover:bg-accent focus-visible:outline-none focus-visible:bg-accent border-b border-border/60" },
-            h("td", { className:"px-3 py-2.5 font-mono text-[12px] whitespace-nowrap" }, r.no),
+            className:cls("cursor-pointer hover:bg-accent focus-visible:outline-none focus-visible:bg-accent border-b border-border/60",
+              isCanceled(r) && "opacity-60") },
+            h("td", { className:"px-3 py-2.5 font-mono text-[12px] whitespace-nowrap" },
+              isCanceled(r) ? S("line-through", r.no) : r.no,
+              isCanceled(r) ? S({ className:"ml-1.5 text-[10.5px] font-sans font-medium",
+                style:{ color:"hsl(var(--destructive))" } }, "취소") : null),
             h("td", { className:"px-3 py-2.5 font-mono text-[12px] text-muted-foreground whitespace-nowrap" },
               ymd(r.date), r.time ? S("ml-1.5", r.time) : null),
             h("td", { className:"px-3 py-2.5" }, h(TypeBadge, { t:r.type })),
@@ -1496,9 +1727,11 @@ function Drawer(p){
   const [note, setNote] = useState("");
   const [by, setBy] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setNote(""); setBy(""); }, [r && r._id]);
+  const [audit, setAudit] = useState(false);
+  useEffect(() => { setNote(""); setBy(""); setAudit(false); }, [r && r._id]);
   if (!r) return null;
   const idx = STAGES.indexOf(r.status);
+  const canW = !(p.ident && p.ident.canWrite === false);
 
   async function moveTo(st){
     if (busy) return;
@@ -1533,13 +1766,24 @@ function Drawer(p){
               h(TypeBadge, { t:r.type }), h(StageBadge, { s:r.status }),
               h(Badge, { className:"border-border bg-muted" }, orgLabel(r)),
               h(Badge, { className:"border-border bg-muted font-mono" },
-                r.equip || (r.dept + " " + (DEPT_N[r.dept] || ""))))),
+                r.equip || (r.dept + " " + (DEPT_N[r.dept] || ""))),
+              isCanceled(r) ? h(Badge, {
+                style:{ borderColor:"hsl(var(--destructive))", color:"hsl(var(--destructive))" },
+                className:"bg-transparent font-medium" }, "사고 취소" + (r.cancelReason ? " · " + r.cancelReason : "")) : null)),
           h(Btn, { v:"outline", sz:"icon", onClick:p.onClose, "aria-label":"닫기" }, h(Icon, { n:"x" }))),
         D("flex flex-wrap gap-2 mt-3.5",
           h(Btn, { v:"primary", sz:"sm", icon:"file-text", onClick:() => p.onReport(r) }, "사고보고서"),
-          h(Btn, { sz:"sm", icon:"pencil", onClick:() => p.onEdit(r) }, "수정"),
-          h(Btn, { v:"ghost", sz:"sm", icon:"trash-2", className:"text-destructive",
-            onClick:() => p.onDelete(r) }, "삭제"))),
+          canW ? h(Btn, { sz:"sm", icon:"pencil", onClick:() => p.onEdit(r) }, "수정") : null,
+          h(Btn, { sz:"sm", icon:"clock", onClick:() => setAudit(true) },
+            "수정 이력" + ((r.audit || []).length ? " " + (r.audit || []).length : "")),
+          canW && !isCanceled(r) ? h(Btn, { v:"ghost", sz:"sm", icon:"circle-x", className:"text-destructive",
+            onClick:() => p.onCancel(r) }, "사고 취소") : null,
+          canW && isCanceled(r) ? h(Btn, { v:"ghost", sz:"sm", icon:"refresh-cw",
+            onClick:() => p.onRestore(r) }, "취소 되돌리기") : null,
+          p.ident && p.ident.isAdmin ? h(Btn, { v:"ghost", sz:"sm", icon:"trash-2", className:"text-destructive",
+            onClick:() => p.onPurge(r) }, "영구 삭제") : null),
+        !canW ? D("mt-2 text-[11.5px] text-muted-foreground",
+          "읽기 전용 권한입니다 — 조회와 보고서 출력만 가능합니다.") : null),
 
       D("px-5 pb-8",
         /* 진행 단계 */
@@ -1656,7 +1900,137 @@ function Drawer(p){
                 (L.ts || "").slice(2, 16).replace("T", " ")),
               D(null, D("text-[12.5px]", L.note),
                 D("text-[11px] text-muted-foreground mt-0.5", (L.by || "미기재") + " · " + (L.stage || ""))))),
-            !(r.log || []).length ? D("text-[13px] text-muted-foreground", "기록 없음") : null)))));
+            !(r.log || []).length ? D("text-[13px] text-muted-foreground", "기록 없음") : null))),
+    audit ? h(AuditModal, { rec:r, onClose:() => setAudit(false) }) : null));
+}
+
+/* ═══════════ 수정 이력 모달 ═══════════ */
+function AuditModal(p){
+  const r = p.rec;
+  const list = (r.audit || []).slice().reverse();
+  const TH = t => h("th", { className:cls("px-3 py-2 text-[11px] font-semibold uppercase tracking-wider",
+    "text-muted-foreground whitespace-nowrap border-b border-border bg-muted/60 text-left") }, t);
+  return D({ className:"fixed inset-0 z-50 flex items-center justify-center p-4",
+      onClick:p.onClose },
+    D("absolute inset-0 bg-black/60 backdrop-blur-[1px]"),
+    D({ className:"relative w-full max-w-[900px] max-h-[82vh] flex flex-col bg-card border border-border rounded-lg shadow-2xl overflow-hidden",
+        onClick:e => e.stopPropagation() },
+      D("flex items-center gap-3 px-5 py-4 border-b border-border",
+        D("min-w-0 flex-1",
+          D("text-[15px] font-semibold", "수정 이력"),
+          D("text-[12px] text-muted-foreground mt-0.5",
+            S("font-mono", r.no), " · 총 ", String(list.length), "건")),
+        h(Btn, { v:"outline", sz:"icon", onClick:p.onClose, "aria-label":"닫기" }, h(Icon, { n:"x" }))),
+      D("overflow-auto",
+        !list.length
+          ? D("px-5 py-10 text-center text-[13px] text-muted-foreground",
+              "기록된 수정 이력이 없습니다.",
+              D("mt-1 text-[12px]", "이 기능을 넣기 전에 등록된 건은 이력이 비어 있습니다."))
+          : h("table", { className:"w-full border-collapse min-w-[760px]" },
+              h("thead", null, h("tr", null,
+                TH("수정 일시"), TH("수정자(소속)"), TH("접속 IP"), TH("구분"), TH("수정 항목 및 내용"))),
+              h("tbody", null, list.map((a, i) => h("tr", { key:i,
+                className:"border-b border-border/50 align-top" },
+                h("td", { className:"px-3 py-2.5 font-mono text-[11.5px] whitespace-nowrap" },
+                  (a.ts || "").slice(0, 16).replace("T", " ")),
+                h("td", { className:"px-3 py-2.5 text-[12.5px] whitespace-nowrap" },
+                  (a.by || "미기재") + (a.dept ? " (" + a.dept + ")" : "")),
+                h("td", { className:"px-3 py-2.5 font-mono text-[11.5px] whitespace-nowrap" },
+                  a.ip || S("text-muted-foreground", "미확인")),
+                h("td", { className:"px-3 py-2.5 whitespace-nowrap" },
+                  h(Badge, { className:cls("border-border",
+                    a.act === "취소" ? "bg-destructive/10 text-destructive"
+                      : a.act === "등록" ? "bg-ok/10" : "bg-muted") }, a.act || "수정")),
+                h("td", { className:"px-3 py-2.5 text-[12.5px]" },
+                  !(a.changes || []).length
+                    ? S("text-muted-foreground", a.act === "등록" ? "신규 등록" : "—")
+                    : D("flex flex-col gap-1", (a.changes || []).map((c, j) =>
+                        D({ key:j, className:"flex flex-wrap items-baseline gap-1.5" },
+                          S("font-medium", c.label),
+                          S("text-muted-foreground line-through", c.from),
+                          S("text-muted-foreground", "➔"),
+                          S("font-medium", c.to)))))))))),
+      D("px-5 py-3 border-t border-border text-[11.5px] text-muted-foreground",
+        "접속 IP 는 브라우저가 스스로 알 수 없어 외부 조회로 얻습니다. ",
+        "사내망에서 조회가 막히면 '미확인' 으로 남으며, 상단 ",
+        S("font-medium", "내 정보"), " 에서 직접 입력할 수 있습니다.")));
+}
+
+/* ═══════════ 내 정보 · 권한 · 접속 IP ═══════════ */
+function IdentityModal(p){
+  const id = p.ident;
+  const [name, setName] = useState(id.name || "");
+  const [dept, setDept] = useState(id.dept || "");
+  const [ip, setIp] = useState(id.ip || "");
+  const [manual, setManual] = useState(!!id.ipManual);
+  const [role, setRole] = useState(id.role);
+  const [busy, setBusy] = useState(false);
+
+  async function relookup(){
+    setBusy(true);
+    try {
+      const got = await fetchIp();
+      if (got){ setIp(got); setManual(false); }
+      else setIp("");
+    } finally { setBusy(false); }
+  }
+  function apply(){
+    id.update({ name, dept, ip: ip.trim(), ipManual: manual && !!ip.trim(),
+                role: id.server ? id.role : role });
+    p.onClose();
+  }
+
+  const Row = (label, node, help) => D("py-3 border-b border-border/60",
+    D("text-[12px] font-medium mb-1.5", label), node,
+    help ? D("text-[11.5px] text-muted-foreground mt-1.5", help) : null);
+
+  return D({ className:"fixed inset-0 z-50 flex items-center justify-center p-4", onClick:p.onClose },
+    D("absolute inset-0 bg-black/60 backdrop-blur-[1px]"),
+    D({ className:"relative w-full max-w-[520px] max-h-[82vh] flex flex-col bg-card border border-border rounded-lg shadow-2xl overflow-hidden",
+        onClick:e => e.stopPropagation() },
+      D("flex items-center gap-3 px-5 py-4 border-b border-border",
+        D("min-w-0 flex-1",
+          D("text-[15px] font-semibold", "내 정보 · 권한"),
+          D("text-[12px] text-muted-foreground mt-0.5",
+            "등록·수정·취소할 때 이 정보가 수정 이력에 남습니다.")),
+        h(Btn, { v:"outline", sz:"icon", onClick:p.onClose, "aria-label":"닫기" }, h(Icon, { n:"x" }))),
+
+      D("px-5 pb-2 overflow-auto",
+        Row("권한",
+          id.server
+            ? D("flex items-center gap-2",
+                h(Badge, { className:"border-border bg-accent text-accent-foreground font-medium" }, id.roleLabel),
+                S("text-[11.5px] text-muted-foreground", "공유 등급에 따라 서버가 정했습니다"))
+            : h(Sel, { value:role, onChange:e => setRole(e.target.value), className:"w-auto",
+                options: ROLE_KEYS.map(k => ({ v:k, l:ROLE[k] })) }),
+          id.server
+            ? "이 페이지를 연 계정의 공유 등급을 그대로 씁니다. 바꾸려면 페이지의 공유 메뉴에서 등급을 조정하십시오."
+            : "사내 웹주소나 내 PC 파일로 열면 서버가 없어 권한을 강제할 수 없습니다. 실수 방지용 설정입니다."),
+
+        Row("이름",
+          h("input", { value:name, onChange:e => setName(e.target.value),
+            placeholder:"예) 이노관", className:cls(FIELD, "h-9") })),
+
+        Row("소속",
+          h("input", { value:dept, onChange:e => setDept(e.target.value),
+            placeholder:"예) 안전관리팀", className:cls(FIELD, "h-9") })),
+
+        Row("접속 IP",
+          D("flex flex-col gap-2",
+            D("flex items-center gap-2",
+              h("input", { value:ip, onChange:e => { setIp(e.target.value); setManual(true); },
+                placeholder:"미확인", className:cls(FIELD, "h-9 font-mono flex-1 min-w-0") }),
+              h(Btn, { sz:"sm", icon:"refresh-cw", onClick:relookup, disabled:busy },
+                busy ? "조회 중" : "다시 조회")),
+            h("label", { className:"inline-flex items-center gap-1.5 text-[12px] cursor-pointer select-none" },
+              h("input", { type:"checkbox", checked:manual, className:"w-3.5 h-3.5",
+                onChange:e => setManual(e.target.checked) }),
+              "직접 입력한 값을 계속 쓰기")),
+          "브라우저는 자기 IP 주소를 스스로 알 수 없어 외부에 물어봐야 합니다. 사내망에서 막혀 있으면 비어 있게 되며, 그때는 직접 적어 두십시오.")),
+
+      D("flex items-center justify-end gap-2 px-5 py-3.5 border-t border-border",
+        h(Btn, { v:"ghost", sz:"sm", onClick:p.onClose }, "닫기"),
+        h(Btn, { v:"primary", sz:"sm", icon:"save", onClick:apply }, "저장"))));
 }
 
 
@@ -3224,40 +3598,92 @@ function App(){
   const store = useStore();
   const [view, setView] = useState("dash");
   const [grp, setGrp] = useState("전체");
-  const [year, setYear] = useState("전체");
+  const [period, setPeriod] = useState(ALL_PERIOD);
   const [f, setF] = useState({ type:"", dept:"", status:"", q:"" });
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [report, setReport] = useState(null);
   const [upl, setUpl] = useState(false);
   const [toast, setToast] = useState("");
+  const [showCanceled, setShowCanceled] = useState(false);   // 취소건 포함 보기
+  const [idOpen, setIdOpen] = useState(false);               // 내 정보·권한 설정
+  const ident = useIdentity();
 
+  /* 데이터에 실제로 있는 연도만 드롭다운에 올립니다 */
   const years = useMemo(() => {
     const s = new Set(store.rows.map(yearOf).filter(Boolean));
-    return ["전체"].concat(Array.from(s).sort().reverse());
+    return Array.from(s).sort().reverse();
   }, [store.rows]);
 
   const scoped = useMemo(() => store.rows.filter(r =>
     (grp === "전체" || (grp === "GWCT" ? isOwn(r) : grp === "도급사" ? !isOwn(r) : r.grp === grp))
-    && (year === "전체" || yearOf(r) === year)), [store.rows, grp, year]);
+    && inPeriod(r, period)
+    && (showCanceled || !isCanceled(r))), [store.rows, grp, period, showCanceled]);
+
+  const nCanceled = useMemo(() => store.rows.filter(r =>
+    (grp === "전체" || (grp === "GWCT" ? isOwn(r) : grp === "도급사" ? !isOwn(r) : r.grp === grp))
+    && inPeriod(r, period) && isCanceled(r)).length, [store.rows, grp, period]);
 
   const selLive = sel ? store.rows.find(r => r._id === sel) || null : null;
   const repLive = report ? store.rows.find(r => r._id === report) || null : null;
 
   const flash = m => { setToast(m); setTimeout(() => setToast(""), 3200); };
+
+  /* 저장 — 바뀐 항목을 수정 이력에 남깁니다 */
   const onSave = async rec => {
-    const id = await store.save(rec);
+    if (!ident.canWrite){ flash("읽기 전용 권한입니다 · 저장할 수 없습니다"); return null; }
+    const prev = rec._id ? store.rows.find(x => x._id === rec._id) : null;
+    const changes = prev ? diffRec(prev, rec) : [];
+    const next = Object.assign({}, rec);
+    if (!prev || changes.length){
+      next.audit = (rec.audit || []).concat([auditEntry(ident, prev ? "수정" : "등록", changes)]);
+    }
+    const id = await store.save(next);
     flash(rec._id ? "저장했습니다 · " + rec.no : "등록했습니다 · " + rec.no);
     return id;
   };
-  const onDelete = async r => {
-    if (!window.confirm(`사고 ${r.no} 을(를) 삭제합니다. 되돌릴 수 없습니다.\n계속하시겠습니까?`)) return;
-    await store.remove(r._id); setSel(null); flash("삭제했습니다 · " + r.no);
+
+  /* 취소(소프트 삭제) — 지우지 않고 표시만 바꿔 사고번호 연속성을 지킵니다 */
+  const onCancel = async r => {
+    if (!ident.canWrite){ flash("읽기 전용 권한입니다 · 취소할 수 없습니다"); return; }
+    const why = window.prompt(
+      "사고 " + r.no + " 을(를) 취소 처리합니다.\n" +
+      "데이터는 남고 목록에서만 숨겨집니다(사고번호 유지).\n\n취소 사유를 적어주십시오.", "경미건");
+    if (why === null) return;
+    const next = Object.assign(clone(r), {
+      canceled:true, cancelAt: nowISO(), cancelBy: (ident.name || "미기재"),
+      cancelIp: ident.ip || "", cancelReason: (why || "").trim() || "경미건",
+    });
+    next.audit = (r.audit || []).concat([auditEntry(ident, "취소",
+      [{ k:"canceled", label:"사고 취소", from:"아니오", to:"예 · " + (next.cancelReason) }])]);
+    await store.save(next);
+    setSel(null);
+    flash("취소 처리했습니다 · " + r.no);
+  };
+
+  /* 취소 되돌리기 */
+  const onRestore = async r => {
+    if (!ident.canWrite){ flash("읽기 전용 권한입니다"); return; }
+    const next = Object.assign(clone(r), { canceled:false, cancelAt:"", cancelBy:"", cancelIp:"", cancelReason:"" });
+    next.audit = (r.audit || []).concat([auditEntry(ident, "복원",
+      [{ k:"canceled", label:"사고 취소", from:"예", to:"아니오" }])]);
+    await store.save(next);
+    flash("취소를 되돌렸습니다 · " + r.no);
+  };
+
+  /* 영구 삭제 — 최고 관리자만. 사고번호가 비게 되므로 경고합니다 */
+  const onPurge = async r => {
+    if (!ident.isAdmin){ flash("영구 삭제는 최고 관리자만 할 수 있습니다"); return; }
+    if (!window.confirm(
+      "사고 " + r.no + " 을(를) 영구 삭제합니다.\n\n" +
+      "· 되돌릴 수 없습니다\n· 사고번호가 비어 연속성이 끊깁니다\n\n" +
+      "권장: 취소 처리를 쓰십시오. 그래도 삭제하시겠습니까?")) return;
+    await store.remove(r._id); setSel(null); flash("영구 삭제했습니다 · " + r.no);
   };
 
   async function exportCsv(list){
     const dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null;
-    const name = "GWCT_사고현황_" + (year === "전체" ? "전체" : year) + "_"
+    const name = "GWCT_사고현황_" + periodTag(period) + "_"
       + new Date().toISOString().slice(0, 10) + ".csv";
     if (!dl){
       browserSave(name, toCsv(list), "text/csv;charset=utf-8");
@@ -3362,14 +3788,15 @@ function App(){
             h(Badge, { className:"border-white/35 bg-white/10 text-white" },
               h(Icon, { n:store.conn === "연결됨" ? "circle-check-big" : "circle-alert", c:"w-3 h-3" }),
               "저장소 " + store.conn),
-            h(Btn, { v:"navy", icon:"file-spreadsheet", onClick:() => setUpl(true) }, "엑셀 업로드"),
+            ident.canWrite ? h(Btn, { v:"navy", icon:"file-spreadsheet", onClick:() => setUpl(true) }, "엑셀 업로드") : null,
             h(Btn, { v:"navy", icon:"download", onClick:exportJson,
               title:"사고 데이터 전체를 JSON 파일로 내려받습니다(백업)" }, "JSON 내보내기"),
-            h(Btn, { v:"navy", icon:"upload", onClick:importJson,
-              title:"내려받아 둔 JSON 파일에서 사고 데이터를 불러옵니다" }, "JSON 가져오기"),
-            h(Btn, { v:"white", icon:"plus",
+            ident.canWrite ? h(Btn, { v:"navy", icon:"upload", onClick:importJson,
+              title:"내려받아 둔 JSON 파일에서 사고 데이터를 불러옵니다" }, "JSON 가져오기") : null,
+            ident.canWrite ? h(Btn, { v:"white", icon:"plus",
               onClick:() => setForm(Object.assign(blankIncident(), {
-                no:nextNo(store.rows, "GWCT", new Date().getFullYear()) })) }, "신규 사고 등록")))),
+                no:nextNo(store.rows, "GWCT", new Date().getFullYear()) })) }, "신규 사고 등록")
+              : h(Badge, { className:"border-white/35 bg-white/10 text-white" }, "읽기 전용")))),
       /* 안전 슬로건 띠 — 현장 운영 화면다운 톤을 만듭니다 */
       D("safety-strip noprint",
         D("max-w-[1280px] mx-auto px-4 sm:px-5 py-1.5 flex items-center gap-3 text-[11.5px]",
@@ -3384,14 +3811,44 @@ function App(){
           v => { setReport(null); setView(v); }),
         S("w-px h-6 bg-border mx-0.5"),
         Seg("grp", [
-          { v:"전체", l:"전체", n:store.rows.filter(r => year === "전체" || yearOf(r) === year).length },
-          { v:"GWCT", l:"GWCT", n:store.rows.filter(r => isOwn(r) && (year === "전체" || yearOf(r) === year)).length },
-          { v:"도급사", l:"도급사", n:store.rows.filter(r => !isOwn(r) && (year === "전체" || yearOf(r) === year)).length },
+          { v:"전체", l:"전체", n:store.rows.filter(r => inPeriod(r, period) && (showCanceled || !isCanceled(r))).length },
+          { v:"GWCT", l:"GWCT", n:store.rows.filter(r => isOwn(r) && inPeriod(r, period) && (showCanceled || !isCanceled(r))).length },
+          { v:"도급사", l:"도급사", n:store.rows.filter(r => !isOwn(r) && inPeriod(r, period) && (showCanceled || !isCanceled(r))).length },
         ], grp, setGrp),
-        years.length > 1 ? D("flex items-center gap-1.5 ml-auto",
-          S("text-[11.5px] text-muted-foreground whitespace-nowrap", "연도"),
-          h(Sel, { value:year, options:years, onChange:e => setYear(e.target.value),
-            className:"h-8 w-auto text-[12.5px]" })) : null))),
+        D("flex items-center gap-2 ml-auto flex-wrap justify-end",
+          h(Btn, { v:"ghost", sz:"sm", icon:"users", onClick:() => setIdOpen(true),
+            title:"내 정보 · 권한 · 접속 IP" },
+            D("hidden sm:inline", ident.roleLabel)),
+          /* 조회 기간 — 전체 / 연도별 / 기간 직접 지정 */
+          D("flex items-center gap-1.5",
+            S("text-[11.5px] text-muted-foreground whitespace-nowrap", "조회 기간"),
+            h(Sel, {
+              value: period.mode === "range" ? "__range" : (period.mode === "year" ? period.year : "__all"),
+              onChange: e => {
+                const v = e.target.value;
+                if (v === "__all") setPeriod(ALL_PERIOD);
+                else if (v === "__range") setPeriod({ mode:"range", year:"", from:"", to:"" });
+                else setPeriod({ mode:"year", year:v, from:"", to:"" });
+              },
+              className:"h-8 w-auto text-[12.5px]",
+              options: [{ v:"__all", l:"전체" }]
+                .concat(years.map(y => ({ v:y, l:y + "년" })))
+                .concat([{ v:"__range", l:"기간 직접 지정" }]),
+            }),
+            period.mode === "range" ? D("flex items-center gap-1",
+              h("input", { type:"date", value:period.from, max:period.to || "",
+                "aria-label":"시작일자", title:"시작일자",
+                onChange:e => setPeriod(p => Object.assign({}, p, { from:e.target.value })),
+                className:cls(FIELD_B, "h-8 w-auto px-2 text-[12px]") }),
+              S("text-[12px] text-muted-foreground", "~"),
+              h("input", { type:"date", value:period.to, min:period.from || "",
+                "aria-label":"종료일자", title:"종료일자",
+                onChange:e => setPeriod(p => Object.assign({}, p, { to:e.target.value })),
+                className:cls(FIELD_B, "h-8 w-auto px-2 text-[12px]") }),
+              (period.from || period.to) ? h(Btn, { v:"ghost", sz:"icon", className:"h-8 w-8",
+                title:"지정한 기간 지우기",
+                onClick:() => setPeriod(p => Object.assign({}, p, { from:"", to:"" })) },
+                h(Icon, { n:"x", c:"w-3.5 h-3.5" })) : null) : null))))),
 
     /* 본문 */
     h("main", { className:"max-w-[1280px] mx-auto px-4 sm:px-5 py-4 sm:py-5" },
@@ -3409,7 +3866,8 @@ function App(){
       : view === "dash" ? h(Dashboard, { rows:scoped, onOpen:r => setSel(r._id),
         onStage:st => { setF({ type:"", dept:"", status:st, q:"" }); setView("list"); } })
       : view === "report" ? h(ReportSearchPage, { rows:scoped, onSelectReport:r => setReport(r._id) })
-      : h(IncidentTable, { rows:scoped, f, setF, onOpen:r => setSel(r._id), onCsv:exportCsv }),
+      : h(IncidentTable, { rows:scoped, f, setF, onOpen:r => setSel(r._id), onCsv:exportCsv,
+          showCanceled, setShowCanceled, nCanceled }),
 
       h("footer", { className:"mt-8 pt-4 border-t border-border text-[11.5px] text-muted-foreground leading-relaxed" },
         D(null, "원본 ", S("font-mono", "● 사고현황관리.xlsx / Y2024"), " 46건을 이관해 구축했습니다. ",
@@ -3418,10 +3876,12 @@ function App(){
           " 로 추가하고, 목록 화면의 ", S("font-medium", "CSV 내보내기"), " 로 되돌려 받습니다. ",
           "사진 첨부를 쓰므로 이 페이지는 조직 내부 전용으로 고정됩니다. 담당자 실명·연락처가 포함된 자료이니 공유 범위에 유의하십시오."))),
 
-    selLive ? h(Drawer, { rec:selLive, onClose:() => setSel(null), onSave,
+    selLive ? h(Drawer, { rec:selLive, onClose:() => setSel(null), onSave, ident,
       onEdit:r => { setSel(null); setForm(clone(r)); },
       onReport:r => { setSel(null); setReport(r._id); },
-      onDelete }) : null,
+      onCancel, onRestore, onPurge }) : null,
+
+    idOpen ? h(IdentityModal, { ident, onClose:() => setIdOpen(false) }) : null,
 
     form ? h(FormDialog, { key:form._id || "new", init:form, rows:store.rows,
       lists:store.lists, onAddOption:store.addOption, onRemoveOption:store.removeOption,
