@@ -145,6 +145,12 @@ body{
 .max-h-\[82vh\]{max-height:82vh}
 .min-w-\[760px\]{min-width:760px}
 .font-sans{font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,"Segoe UI",sans-serif}
+/* 2026-09-24 7차 — 사고 목록 표 머리글 고정 */
+.card-clip{overflow:clip}
+.tbl-scroll{overflow-x:auto}
+@media (min-width:1000px){ .tbl-scroll{overflow:visible} }
+.th-sort{cursor:pointer;user-select:none}
+.th-sort:hover{color:hsl(var(--foreground))}
 </style>
 
 
@@ -1641,12 +1647,39 @@ function ReportSearchPage(p){
       )));
 }
 
+/* 사고번호 정렬 키 — "GWCT26-003", "도급사 24-010", "GWCT22-035-01", "GWCT-19-미종결건" 모두 처리 */
+function noKey(no){
+  const s = String(no || "").replace(/\s+/g, " ").trim();
+  const own = /^GWCT/i.test(s) ? 0 : 1;
+  const m = s.match(/(\d{2})\s*-\s*(\d+)(.*)$/) || s.match(/-(\d{2})-?()(.*)$/);
+  const yy = m ? Number(m[1]) : -1, seq = m && m[2] ? Number(m[2]) : 0, tail = m ? m[3] : s;
+  return { yy, own, seq, tail };
+}
+function cmpNo(a, b){          /* 오름차순 비교 */
+  const x = noKey(a), y = noKey(b);
+  return (x.yy - y.yy) || (y.own - x.own) || (x.seq - y.seq) || String(x.tail).localeCompare(String(y.tail), "ko");
+}
+
 /* ═══════════ 사고 목록 ═══════════ */
 function IncidentTable(p){
+  const [asc, setAsc] = useState(false);          /* 기본: 최신 사고번호가 위 */
+  /* 필터 영역 높이 → --flt-h. 표 머리글이 그 바로 아래에 붙습니다 */
+  const fltRef = useRef(null);
+  useEffect(() => {
+    const el = fltRef.current;
+    if (!el) return;
+    const put = () => document.documentElement.style.setProperty("--flt-h", el.offsetHeight + "px");
+    put();
+    const ro = window.ResizeObserver ? new ResizeObserver(put) : null;
+    ro ? ro.observe(el) : window.addEventListener("resize", put);
+    return () => { ro ? ro.disconnect() : window.removeEventListener("resize", put); };
+  }, []);
   const f = p.f, set = (k, v) => p.setF(Object.assign({}, f, { [k]: v }));
   let rows = p.rows.slice();
   if (f.type) rows = rows.filter(r => r.type === f.type);
   if (f.dept) rows = rows.filter(r => r.dept === f.dept);
+  /* 사고 원인 — "__none" 은 원인을 입력하지 않은 건 */
+  if (f.cause) rows = rows.filter(r => f.cause === "__none" ? !(r.cause || "").trim() : (r.cause || "").trim() === f.cause);
   if (f.status) rows = rows.filter(r => f.status === "진행중" ? r.status !== "종결" : r.status === f.status);
   /* 사고 발생일자 기간 — 한쪽만 넣으면 그쪽만 제한 */
   if (f.from) rows = rows.filter(r => (r.date || "").slice(0, 10) >= f.from);
@@ -1656,15 +1689,21 @@ function IncidentTable(p){
     rows = rows.filter(r => [r.no, r.who, r.vendor, r.line, r.event, r.cargo, r.progress, r.owner, r.insNo,
       ...(r.dmg || []).map(d => d.desc)].join(" ").toLowerCase().includes(q));
   }
-  rows.sort((a, b) => (b.date || "").localeCompare(a.date || "") || String(b.no).localeCompare(String(a.no)));
+  /* 정렬 — 사고번호 기준 */
+  rows.sort((a, b) => asc ? cmpNo(a.no, b.no) : cmpNo(b.no, a.no));
 
-  const TH = (t, r) => h("th", { key:t, className:cls("px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider",
-    "text-muted-foreground whitespace-nowrap border-b border-border bg-card sticky top-0 z-10", r ? "text-right" : "text-left") }, t);
+  /* 표 머리글 — 스크롤하면 헤더·필터 바로 아래에 고정됩니다 */
+  const TH = (t, r, extra) => h("th", Object.assign({ key:t, className:cls("px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider",
+    "text-muted-foreground whitespace-nowrap border-b border-border bg-card", r ? "text-right" : "text-left"),
+    style:{ position:"sticky", top:"calc(var(--hdr-h, 0px) + var(--flt-h, 0px))", zIndex:15 } }, extra || {}), t);
 
-  const blank = { type:"", dept:"", status:"", q:"", from:"", to:"" };
+  /* 사고 원인 선택지 — 기본 목록 + ＋항목 추가로 늘린 것 + 데이터에 있는 값 */
+  const causeOpts = optionsOf(CAUSES, p.rows, "cause", (p.lists || {}).cause);
+
+  const blank = { type:"", dept:"", status:"", q:"", from:"", to:"", cause:"" };
   return D(null,
     /* 검색·필터 — 스크롤해도 헤더 바로 아래에 붙어 있습니다 */
-    D({ className:"flex flex-wrap gap-2 p-3 rounded-lg border border-border bg-card shadow-sm",
+    D({ ref:fltRef, className:"flex flex-wrap gap-2 p-3 rounded-lg border border-border bg-card shadow-sm",
         style:{ position:"sticky", top:"var(--hdr-h, 0px)", zIndex:20, marginBottom:"12px" } },
       D("relative flex-1 min-w-[200px]",
         D("absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none",
@@ -1672,11 +1711,14 @@ function IncidentTable(p){
         h("input", { id:"f-q", type:"search", value:f.q, onChange:e => set("q", e.target.value),
           placeholder:"사고번호 · 귀책자 · 선사 · 보험접수번호 · 경위 검색",
           className:cls(FIELD, "h-9 pl-8") })),
-      /* 구분·소속·상태 3개는 한 행에 가로로 나란히 — 내부는 줄바꿈 없는 flex, 각 항목은 1/3씩 */
-      D({ className:"flex gap-2 flex-1", style:{ minWidth:"390px" } },   /* 드롭다운 글자가 잘리지 않을 폭 */
+      /* 구분·원인·소속·상태 4개는 한 행에 가로로 나란히 — 내부는 줄바꿈 없는 flex */
+      D({ className:"flex gap-2 flex-1", style:{ minWidth:"520px" } },   /* 드롭다운 글자가 잘리지 않을 폭 */
         h(Sel, { id:"f-type", value:f.type, onChange:e => set("type", e.target.value), className:"w-auto flex-1 min-w-0",
-          title:"사고 유형", "aria-label":"사고 유형",
-          options:[{ v:"", l:"사고 유형 전체" }].concat(TYPES.map(t => ({ v:t, l:t }))) }),
+          title:"사고구분", "aria-label":"사고구분",
+          options:[{ v:"", l:"구분 전체" }].concat(TYPES.map(t => ({ v:t, l:t }))) }),
+        h(Sel, { id:"f-cause", value:f.cause || "", onChange:e => set("cause", e.target.value), className:"w-auto flex-1 min-w-0",
+          title:"사고 원인", "aria-label":"사고 원인",
+          options:[{ v:"", l:"원인 전체" }].concat(causeOpts.map(c => ({ v:c, l:c })), [{ v:"__none", l:"원인 미입력" }]) }),
         h(Sel, { id:"f-dept", value:f.dept, onChange:e => set("dept", e.target.value), className:"w-auto flex-1 min-w-0",
           options:[{ v:"", l:"소속 전체" }].concat(DEPTS.map(d => ({ v:d, l:d + " " + DEPT_N[d] }))) }),
         h(Sel, { id:"f-status", value:f.status, onChange:e => set("status", e.target.value), className:"w-auto flex-1 min-w-0",
@@ -1710,12 +1752,16 @@ function IncidentTable(p){
             "상단 조회 기간(" + p.periodText + ") 안에서 찾습니다 · 다른 해를 찾으려면 조회 기간을 [전체]로 바꾸십시오")
         : null),
 
-    h(Card, { className:"overflow-hidden" },
+    h(Card, { className:"card-clip" },
     rows.length ? D(null,
-      D("overflow-x-auto",
+      D("tbl-scroll",
         h("table", { className:"w-full border-collapse min-w-[900px]" },
           h("thead", null, h("tr", null,
-            TH("사고번호"), TH("발생일시"), TH("구분"), TH("귀책 소속·성명"), TH("선사"),
+            TH(asc ? "사고번호 ▲" : "사고번호 ▼", 0, { className:cls("px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider",
+                "whitespace-nowrap border-b border-border bg-card text-left th-sort", "text-foreground"),
+              title:"누르면 사고번호 오름차순·내림차순이 바뀝니다", onClick:() => setAsc(v => !v),
+              "aria-sort": asc ? "ascending" : "descending" }),
+            TH("발생일시"), TH("구분"), TH("귀책 소속·성명"), TH("선사"),
             TH("피해예상", 1), TH("총 지급", 1), TH("진행 단계"), TH(""))),
           h("tbody", null, rows.map(r => h("tr", { key:r._id, tabIndex:0,
             onClick:() => p.onOpen(r),
@@ -3690,7 +3736,7 @@ function App(){
   const [view, setView] = useState("dash");
   const [grp, setGrp] = useState("전체");
   const [period, setPeriod] = useState(YEAR_PERIOD);
-  const [f, setF] = useState({ type:"", dept:"", status:"", q:"", from:"", to:"" });
+  const [f, setF] = useState({ type:"", dept:"", status:"", q:"", from:"", to:"", cause:"" });
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [report, setReport] = useState(null);
@@ -3993,10 +4039,10 @@ function App(){
       repLive ? h(ReportView, { rec:repLive, onBack:() => setReport(null),
         onEdit:r => setForm(clone(r)) })
       : view === "dash" ? h(Dashboard, { rows:scoped, onOpen:r => setSel(r._id),
-        onStage:st => { setF({ type:"", dept:"", status:st, q:"", from:"", to:"" }); setView("list"); } })
+        onStage:st => { setF({ type:"", dept:"", status:st, q:"", from:"", to:"", cause:"" }); setView("list"); } })
       : view === "report" ? h(ReportSearchPage, { rows:scoped, onSelectReport:r => setReport(r._id) })
       : h(IncidentTable, { rows:scoped, f, setF, onOpen:r => setSel(r._id), onCsv:exportCsv,
-          periodText:periodLabel(period),
+          periodText:periodLabel(period), lists:store.lists,
           showCanceled, setShowCanceled, nCanceled }),
 
       h("footer", { className:"mt-8 pt-4 border-t border-border text-[11.5px] text-muted-foreground leading-relaxed" },
