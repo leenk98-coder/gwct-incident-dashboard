@@ -591,6 +591,10 @@ const CAUSES = ["운전원 부주의","정비 불량","작업 절차 미준수",
 const BLAMES = ["운전원","정비팀","도급사","선사","화주","제3자","조사 중"];
 const EQUIPS = ["T/C274","T/C271","Q/C01","Q/C02","Y/T15","R/S03"];
 const HARMS  = ["대인","대물","재산","기타"];
+/* 피해내역 항목 → 피해 구분 (보고서 표 정렬용). 컨테이너·화물·본선·외부차량은 남의 재산(대물),
+   터미널 장비·시설물은 자사 재산, 목록에 없는 항목은 기타 */
+const DMG_HARM = { "인명피해":"대인", "컨테이너":"대물", "화물":"대물", "본선":"대물", "외부차량":"대물",
+  "터미널장비":"재산", "터미널시설물":"재산", "기타":"기타" };
 /* 회차별 보고 — 초기 → 중간1·2… → 종결 */
 const RKINDS = ["초기","중간","종결"];
 const RTITLE = { "초기":"사고상황보고 (초기)", "중간":"사고상황보고 (중간)", "종결":"사고상황보고 (종결)" };
@@ -3200,7 +3204,11 @@ function reportBody(r, srcMap, ridx){
   const midN = rounds.filter(x => x.kind === "중간").length;
   const stTxt = rd.kind === "중간" && midN > 1 ? "중간 " + roundLabel(rounds, ri).replace(/^중간/, "") + "차" : (rd.kind || "초기");
 
-  const dmg = (r.dmg || []).filter(d => d.desc || d.cost || d.fin);
+  /* 피해내역 — 인적(대인) → 물적(대물) → 재산 → 기타 순, 같은 구분 안에서는 입력 항목 순 */
+  const dmg = (r.dmg || []).filter(d => d.desc || d.cost || d.fin)
+    .map((d, i) => [d, HARMS.indexOf(DMG_HARM[d.cat] || "기타"), DMG_CATS.indexOf(d.cat), i])
+    .sort((a, b) => a[1] - b[1] || (a[2] < 0 ? 99 : a[2]) - (b[2] < 0 ? 99 : b[2]) || a[3] - b[3])
+    .map(x => x[0]);
   const est = Number(r.dmgTotal) || 0;
   const fin = Number(r.finTotal) || 0;
   const pay = (r.pay || []).filter(x => x.amt);
@@ -3242,15 +3250,15 @@ function reportBody(r, srcMap, ridx){
     return `○ ${HARM_LABEL[k]}\n` + body.split("\n").map(l => "    ▷ " + l).join("\n");
   }).filter(Boolean).join("\n");
 
-  /* 피해 대상과 상세내역 — 금액과 무관하게 항상 보여 준다 */
+  /* 피해 구분과 상세내역 — 금액과 무관하게 항상 보여 준다 */
   const dmgTable = `<table class="g" style="margin-top:2mm">
-  <tr><th style="width:26mm">피해 대상</th><th style="width:auto;background:#f0f2f4">상 세 내 역</th></tr>
+  <tr><th style="width:26mm">피해 구분</th><th style="width:auto;background:#f0f2f4">상 세 내 역</th></tr>
   ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th><td class="l">${nl(d.desc) || "—"}</td></tr>`).join("")
     : `<tr><td colspan="2" style="text-align:center;color:#888">기재된 피해내역 없음</td></tr>`}
 </table>`;
 
   const money = `<table class="g">
-  <tr><th style="width:26mm">피해 대상</th><th style="width:auto;background:#f0f2f4">초기 예상액</th>
+  <tr><th style="width:26mm">피해 구분</th><th style="width:auto;background:#f0f2f4">초기 예상액</th>
       <th style="width:38mm;background:#f0f2f4">최종 확정액</th></tr>
   ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th>`
       + `<td class="r">${d.cost ? won(d.cost) : "-"}</td><td class="r">${d.fin ? won(d.fin) : "-"}</td></tr>`).join("")
