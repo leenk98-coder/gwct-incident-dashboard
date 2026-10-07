@@ -3157,7 +3157,7 @@ const RPT_CSS = `
 /* 증빙 사진 — 첨부한 전부를 2단으로 */
 .rpt .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
 .rpt .pcard{border:1px solid #b8bfc6;background:#fff;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
-.rpt .pcard img{display:block;width:100%;height:62mm;object-fit:contain;background:#fff}
+.rpt .pcard img{display:block;width:100%;height:62mm;object-fit:cover;object-position:center;background:#fff}
 .rpt .pcard .cap{font-size:8.5pt;color:#222;padding:1.2mm 2mm;border-top:1px solid #e3e7ea;
   text-align:center;white-space:pre-wrap;word-break:break-word}
 .rpt .pcard .cap b{color:#003D8A;margin-right:1.2mm}
@@ -3264,19 +3264,18 @@ function reportBody(r, srcMap, ridx){
   <tr class="sum"><th>합 계</th><td class="r">${won(paidTot)}</td></tr>
 </table>` : "";
 
-  /* 보험 — 종결보고에서 접수 건이면 보험사·접수번호·손해사정인(이름·연락처·소속)을 펼쳐 보여줍니다 */
+  /* 보험 — 접수 건이면 (모든 회차) '접수 - 접수번호' 와 보험사, 손해사정인(이름·소속·연락처)을 보여줍니다 */
   const sv = parseSurveyor(r.surveyor);
   const insNo = r.insNo || sv.no;
-  const insRows = end && r.insFiled
-    ? `<tr><th>보험접수</th><td>접수${sv.recv ? " (" + esc(sv.recv) + ")" : ""}</td>
-      <th>보 험 사</th><td>${esc(sv.insurer || "—")}</td>
-      <th>접수번호</th><td class="mono">${esc(insNo || "—")}</td></tr>
+  const insRows = r.insFiled
+    ? `<tr><th>보험접수</th><td colspan="3">접수${insNo ? ` - <span class="mono">${esc(insNo)}</span>` : ""}${sv.recv ? " (" + esc(sv.recv) + ")" : ""}</td>
+      <th>보 험 사</th><td>${esc(sv.insurer || "—")}</td></tr>
   ${sv.name || sv.phone || sv.org
     ? `<tr><th>손해사정인</th><td>${esc([sv.name, sv.title].filter(Boolean).join(" ") || "—")}</td>
       <th>소　　속</th><td>${esc(sv.org || "—")}</td>
       <th>연 락 처</th><td class="mono">${esc(sv.phone || "—")}${sv.extra.map(x => "<br>" + esc(x)).join("")}</td></tr>`
     : `<tr><th>손해사정인</th><td colspan="5">—</td></tr>`}`
-    : `<tr><th>보험접수</th><td colspan="5">${r.insFiled ? "접수" : "미접수"}${insNo ? " · 접수번호 " + esc(insNo) : ""}</td></tr>`;
+    : `<tr><th>보험접수</th><td colspan="5">미접수</td></tr>`;
 
   /* ── 사고 기본사항 — 대표이사가 한눈에 보는 머리표 ── */
   const hdr = `<table class="g hd">
@@ -3303,7 +3302,7 @@ function reportBody(r, srcMap, ridx){
 </div>${bar}
 <div style="margin-top:3mm">${money}</div>${payTable}`;
 
-  /* 증빙 자료(붙임) — 첨부한 사진 전부(사진 설명 포함) + 붙임 목록(붙임 글 · 사진 외 첨부 · 이 회차 증빙 파일) */
+  /* 증빙 자료 — 첨부한 사진 전부(사진 설명 포함). 붙임 목록(붙임 글 · 사진 외 첨부 · 이 회차 증빙 파일)은 맨 아래 작성일 위 */
   const circ = i => (i < 20 ? String.fromCharCode(0x2460 + i) : "(" + (i + 1) + ")");
   const etcFiles = (r.files || []).filter(f => !isImg(f)).concat(rd.files || []);
   const photosBlock = imgs.length
@@ -3313,12 +3312,12 @@ function reportBody(r, srcMap, ridx){
     : `<div class="pnone">첨부된 현장 사진이 없습니다 — 인쇄 후 사진을 부착하십시오.</div>`;
   const attachList = (String(rd.attach || "").trim() ? [String(rd.attach).trim()] : [])
     .concat(etcFiles.map(f => f.name));
-  const attachBlock = `<table class="g" style="margin-top:2mm">
+  const attachBlock = `<table class="g sec" style="margin-top:6mm">
   <tr><th style="width:26mm">붙　　임</th><td class="l">${attachList.length
     ? attachList.map((x, i) => (attachList.length > 1 ? (i + 1) + ". " : "") + esc(x)).join("<br>") : "없음"}</td></tr>
 </table>`;
 
-  /* 본문 순서 — 사고개요 → 피해사항 → (금액) → 진행사항 / 조치·재발방지 → 증빙자료(붙임) → 기타사항(맨 끝) */
+  /* 본문 순서 — 사고개요 → 피해사항 → (금액) → 진행사항 / 조치·재발방지 → 증빙자료 → 기타사항 → (붙임 칸) */
   const etcTxt = end
     ? (rd.etc || "") + ((rd.release || "").trim() ? (rd.etc ? "\n" : "") + "○ " + rd.release : "")
     : (rd.etc || "");
@@ -3334,7 +3333,7 @@ function reportBody(r, srcMap, ridx){
 ${nl(rd.act)}</div><div>나. 재발방지대책
 ${nl(rd.prev)}</div></div>`, ""]);
   else secs.push(["진 행 사 항", `<div class="body">${nl(rd.progress) || "&nbsp;"}</div>`, ""]);
-  secs.push(["증 빙 자 료 (붙 임)", photosBlock + attachBlock, imgs.length ? "현장 사진 " + imgs.length + "장" : ""]);
+  secs.push(["증 빙 자 료", photosBlock, imgs.length ? "현장 사진 " + imgs.length + "장" : ""]);
   secs.push(["기 타 사 항", `<div class="body">${nl(etcTxt) || "&nbsp;"}</div>`, ""]);
 
   const bodyHtml = secs.map((x, i) =>
@@ -3350,6 +3349,7 @@ ${x[1]}`).join("\n");
 
 ${hdr}
 ${bodyHtml}
+${attachBlock}
 
 <div class="foot">
   <span>작성일 <span class="mono">${new Date().toISOString().slice(0, 10)}</span></span>
