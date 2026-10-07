@@ -505,6 +505,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 "camera": "<path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\" /> <circle cx=\"12\" cy=\"13\" r=\"3\" />",
 "check": "<path d=\"M20 6 9 17l-5-5\" />",
 "chevron-down": "<path d=\"m6 9 6 6 6-6\" />",
+"chevron-up": "<path d=\"m18 15-6-6-6 6\" />",
+"sun": "<circle cx=\"12\" cy=\"12\" r=\"4\" /> <path d=\"M12 2v2\" /> <path d=\"M12 20v2\" /> <path d=\"m4.93 4.93 1.41 1.41\" /> <path d=\"m17.66 17.66 1.41 1.41\" /> <path d=\"M2 12h2\" /> <path d=\"M20 12h2\" /> <path d=\"m6.34 17.66-1.41 1.41\" /> <path d=\"m19.07 4.93-1.41 1.41\" />",
+"moon": "<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\" />",
 "chevron-right": "<path d=\"m9 18 6-6-6-6\" />",
 "circle-alert": "<circle cx=\"12\" cy=\"12\" r=\"10\" /> <line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\" /> <line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\" />",
 "circle-check-big": "<path d=\"M21.801 10A10 10 0 1 1 17 3.335\" /> <path d=\"m9 11 3 3L22 4\" />",
@@ -590,7 +593,7 @@ const EQUIPS = ["T/C274","T/C271","Q/C01","Q/C02","Y/T15","R/S03"];
 const HARMS  = ["대인","대물","재산","기타"];
 /* 회차별 보고 — 초기 → 중간1·2… → 종결 */
 const RKINDS = ["초기","중간","종결"];
-const RTITLE = { "초기":"사고상황보고", "중간":"사고상황(중간)보고", "종결":"사고상황(종결)보고" };
+const RTITLE = { "초기":"사고상황보고 (초기)", "중간":"사고상황보고 (중간)", "종결":"사고상황보고 (종결)" };
 /* 소속 표기: 기존 46건은 grp가 "자사"로 저장되어 있어 GWCT로 읽습니다 */
 const isOwn   = r => !r.grp || r.grp === "자사" || r.grp === "GWCT";
 const orgLabel = r => (isOwn(r) ? "GWCT" : r.grp) + (r.vendor ? " · " + r.vendor : "");
@@ -922,174 +925,6 @@ function auditEntry(id, act, changes){
     act: act,
     changes: changes || [],
   };
-}
-
-/* ═══════════ 사고구분 자동 추천 · 경위서 정리 (규칙 기반) ═══════════
-   사고 경위 문장에서 키워드를 찾아 사고구분을 고르고, 경위서 초안을
-   보고서 문체로 다듬습니다. 결과는 모두 사용자가 고쳐 쓸 수 있습니다. */
-
-/* 점수가 가장 높은 구분을 고릅니다. w 는 가중치입니다. */
-const TYPE_RULES = [
-  { type:"인명(산재,공상)", w:3, kw:["부상","골절","염좌","찰과상","열상","타박","화상","전치","병원","이송",
-      "119","응급","산재","공상","사망","실신","추락","협착","끼임","낙상","의식","진단","통원","입원","인명"] },
-  { type:"영업배상(선사,화주)", w:2, kw:["컨테이너","화물","본선","선측","선사","화주","선박","하역","적재","적입",
-      "래싱","트윈","스프레더","콘","damage","카고","CNTR","컨","박스","선적","양하"] },
-  { type:"영업배상(제3자)", w:2, kw:["외부차량","외부 차량","일반차량","방문차량","제3자","제 3자","운송사","트레일러",
-      "화물차","지입","외부인","민원","상대차량","상대 차량","보행자"] },
-  { type:"영업배상(제4자)", w:2, kw:["제4자","제 4자","인접","타사","인근 업체","외부업체"] },
-  { type:"재산", w:2, kw:["터미널","시설물","게이트","펜스","조명","가로등","전주","포장","노면","건물","사무동",
-      "장비","크레인","갠트리","트랜스퍼","리치스태커","야드트랙터","T/C","G/C","Q/C","R/S","Y/T",
-      "파워케이블","케이블","레일","붐","스프레더 손상","자사"] },
-];
-/* 경위 문장을 읽어 사고구분을 추천합니다. 못 고르면 "" 를 돌려줍니다. */
-function suggestType(text, rec){
-  const t = String(text || "");
-  if (t.replace(/\s/g, "").length < 6) return "";
-  const hay = t.toLowerCase();
-  let best = "", bestScore = 0;
-  TYPE_RULES.forEach(rule => {
-    let sc = 0;
-    rule.kw.forEach(k => { if (hay.indexOf(String(k).toLowerCase()) >= 0) sc += rule.w; });
-    if (sc > bestScore){ bestScore = sc; best = rule.type; }
-  });
-  /* 체크된 피해 상황이 있으면 거들어 줍니다 */
-  const harm = (rec && rec.harm) || {};
-  if (harm["대인"] && harm["대인"].on) {
-    if (best !== "인명(산재,공상)" && bestScore < 6) best = "인명(산재,공상)";
-  }
-  return bestScore > 0 ? best : "";
-}
-/* 충돌·접촉 같은 사고 형태를 한 마디로 집어냅니다 */
-const SHAPE_RULES = [
-  { label:"충돌·접촉", kw:["충돌","접촉","추돌","부딪","박음","긁","스침","닿아","충격"] },
-  { label:"낙하·전도", kw:["낙하","떨어","전도","넘어","쓰러","전복","도괴"] },
-  { label:"협착·끼임", kw:["협착","끼임","끼어","말려"] },
-  { label:"추락", kw:["추락","실족","낙상"] },
-  { label:"화재·연기", kw:["화재","연기","발화","불꽃","소화기"] },
-  { label:"누유·누수", kw:["누유","누수","기름","오일","유출"] },
-  { label:"장비 고장", kw:["고장","정지","오작동","단선","단락","트립","이상음"] },
-];
-function suggestShape(text){
-  const hay = String(text || "").toLowerCase();
-  for (const r of SHAPE_RULES){
-    for (const k of r.kw) if (hay.indexOf(k.toLowerCase()) >= 0) return r.label;
-  }
-  return "";
-}
-
-/* ── 경위 검증 (규칙 기반) ─────────────────────────────────────
-   사용자가 쓴 내용을 그대로 두고 표기·문체·흐름만 손봅니다.
-   없는 사실을 만들지 않고, 문장을 지우지도 않습니다. */
-
-/* 현장에서 자주 나오는 표기 흔들림 — 앞이 틀린 표기, 뒤가 바른 표기 */
-const TYPO_MAP = [
-  [/콘테이너|컨테이너|컨테이터|컨테어너|콘테이나/g, "컨테이너"],
-  [/겐트리|갠추리|간트리/g, "갠트리"],
-  [/트렌스퍼|트란스퍼/g, "트랜스퍼"],
-  [/리치스테커|리치스태카|리치스텍커/g, "리치스태커"],
-  [/야드트렉터|야드트랙타|야드트렉타/g, "야드트랙터"],
-  [/스프레드바|스프레더바|스프레다/g, "스프레더"],
-  [/렛싱|레싱|랫싱/g, "래싱"],
-  [/샤시|샤씨|섀시/g, "샤시"],
-  [/파레트|파렛트/g, "팔레트"],
-  [/밧데리|바테리/g, "배터리"],
-  [/부주위|부주의함/g, "부주의"],
-  [/운전수|기사분|기사님/g, "운전원"],
-  [/작업자분|작업자님/g, "작업자"],
-  [/후렌지|플렌지/g, "플랜지"],
-  [/아우트리거|아웃트리거/g, "아우트리거"],
-  [/체인블럭|체인블록/g, "체인블록"],
-  [/휀스|펜스/g, "펜스"],
-  [/데미지/g, "손상"],
-  [/크락션|크렉션/g, "경적"],
-  [/에어콘/g, "에어컨"],
-  [/멧세지|메세지/g, "메시지"],
-  [/되서/g, "되어서"], [/됬/g, "됐"],
-  [/않되/g, "안 되"], [/안되어/g, "안 되어"],
-  [/할려고/g, "하려고"], [/할수/g, "할 수"], [/일어날수/g, "일어날 수"],
-  [/그리고나서|그리고 나서/g, "그 뒤"],
-  /* 붙여 쓰기 쉬운 곳 */
-  [/작업중/g, "작업 중"], [/운행중/g, "운행 중"], [/이동중/g, "이동 중"],
-  [/하역중/g, "하역 중"], [/점검중/g, "점검 중"], [/대기중/g, "대기 중"],
-  [/입은거|입은 거/g, "입은 것"], [/한거|한 거/g, "한 것"],
-];
-/* 보고서에 어울리지 않는 구어체 — 뜻은 그대로 두고 표현만 바꿉니다 */
-const STYLE_MAP = [
-  [/\bcntr\b|\bCNTR\b/g, "컨테이너"],
-  [/\bT\/?C\b/g, "T/C"], [/\bG\/?C\b/g, "G/C"],
-  [/\bR\/?S\b/g, "R/S"], [/\bY\/?T\b/g, "Y/T"],
-  [/부딪혔|부딪쳤|박았|들이받았/g, "접촉하였"],
-  [/부딪침|박음|들이받음/g, "접촉함"],
-  [/찌그러졌/g, "변형되었"], [/찌그러짐/g, "변형됨"],
-  [/(?:^|\s)(그냥|대충|어떻게든|좀)\s/g, " "],
-  [/암튼|아무튼|여하튼/g, ""],
-  [/[ \t]{2,}/g, " "],
-];
-/* 추측·과장으로 읽힐 수 있는 표현 — 고치지 않고 사용자에게 알려만 줍니다 */
-const HEDGE_WORDS = ["같습니다", "같음", "듯", "보임", "보입니다", "추정", "아마",
-  "인 것 같", "심한", "심하게", "엄청", "완전히", "매우", "굉장히", "거의", "약간"];
-
-/* 한 문장을 '~하였습니다' 형태로 맞춥니다. 내용은 건드리지 않습니다. */
-/* 자주 나오는 끝맺음은 따로 잡습니다 — 뭉뚱그린 규칙만 두면 '같었습니다' 같은 말이 나옵니다 */
-const ENDING_MAP = [
-  [/같음$/, "같습니다"], [/같았음$/, "같았습니다"],
-  [/긁음$|긁힘$/, "긁혔습니다"],
-  [/없음$/, "없었습니다"], [/있음$/, "있었습니다"],
-  [/하였$/, "하였습니다"], [/되었$/, "되었습니다"], [/였$/, "였습니다"],
-  [/발생$/, "발생하였습니다"], [/파손$/, "파손되었습니다"], [/손상$/, "손상되었습니다"],
-];
-function endingOf(line){
-  let x = String(line).trim().replace(/[.\s]+$/, "");
-  if (!x) return "";
-  if (/(습니다|입니다|됩니다|합니다)$/.test(x)) return x + ".";
-  for (const [re, to] of ENDING_MAP) if (re.test(x)) return x.replace(re, to) + ".";
-  if (/했음$|하였음$/.test(x))   return x.replace(/했음$|하였음$/, "하였습니다") + ".";
-  if (/됐음$|되었음$/.test(x))   return x.replace(/됐음$|되었음$/, "되었습니다") + ".";
-  if (/했다$|하였다$/.test(x))   return x.replace(/했다$|하였다$/, "하였습니다") + ".";
-  if (/됐다$|되었다$/.test(x))   return x.replace(/됐다$|되었다$/, "되었습니다") + ".";
-  if (/이다$|였다$/.test(x))     return x.replace(/이다$|였다$/, "입니다") + ".";
-  if (/있다$/.test(x))           return x.replace(/있다$/, "있습니다") + ".";
-  if (/없다$/.test(x))           return x.replace(/없다$/, "없습니다") + ".";
-  if (/함$/.test(x))             return x.replace(/함$/, "하였습니다") + ".";
-  if (/됨$/.test(x))             return x.replace(/됨$/, "되었습니다") + ".";
-  if (/짐$/.test(x))             return x.replace(/짐$/, "졌습니다") + ".";
-  if (/음$/.test(x))             return x.replace(/음$/, "었습니다") + ".";
-  return x + ".";
-}
-
-/* 사용자가 쓴 경위를 다듬어 돌려줍니다.
-   { text, changes:[{kind, from, to}], hedges:[표현] } */
-function refineEvent(raw){
-  const src = String(raw == null ? "" : raw);
-  const changes = [];
-  let t = src.replace(/\r\n/g, "\n").trim();
-  if (!t) return { text:"", changes:[], hedges:[] };
-
-  const apply = (rules, kind) => {
-    rules.forEach(([re, to]) => {
-      t = t.replace(re, (m) => {
-        const out = typeof to === "string" ? m.replace(re, to) : to;
-        const a = m.trim(), b = String(out).trim();
-        if (a && a !== b) changes.push({ kind, from:a, to:b || "(삭제)" });
-        return out;
-      });
-    });
-  };
-  apply(TYPO_MAP, "표기");
-  apply(STYLE_MAP, "표현");
-
-  /* 문장 단위로 끊어 종결어미를 맞춥니다. 문장을 합치거나 지우지 않습니다. */
-  const before = t;
-  const lines = t.split(/\n+/).map(b => b.trim()).filter(Boolean);
-  t = lines.map(block =>
-    block.split(/(?<=[.!?。])\s+/).map(x => endingOf(x)).filter(Boolean).join(" ")
-  ).join("\n");
-  if (t !== before) changes.push({ kind:"문체", from:"문장 끝맺음", to:"~하였습니다 형태로 통일" });
-
-  t = t.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
-
-  const hedges = HEDGE_WORDS.filter(w => src.indexOf(w) >= 0);
-  return { text:t, changes, hedges };
 }
 
 /* ── shadcn 스타일 프리미티브 ───────────────────────────────── */
@@ -2185,8 +2020,6 @@ function FormDialog(p){
   const [busy, setBusy] = useState(false);
   const [ri, setRi] = useState(0);
   const [autoNo, setAutoNo] = useState(!p.init._id);
-  const [evPrev, setEvPrev] = useState(null);   // 경위 되돌리기용 직전 본문
-  const [review, setReview] = useState(null);   // 검토용 경위 {text, changes, hedges} — 저장하지 않습니다
   const set = (k, v) => setD(prev => Object.assign({}, prev, { [k]: v }));
 
   const LS  = p.lists || {};
@@ -2203,30 +2036,6 @@ function FormDialog(p){
     const n = nextNo(p.rows, d.grp, y);
     if (n !== d.no) setD(prev => Object.assign({}, prev, { no:n }));
   }, [autoNo, d.grp, d.date, p.rows]);
-
-  /* 사고 경위 → 사고구분 자동 추천 (규칙 기반). 확정 경위가 있으면 그것을, 없으면 간단 입력을 읽습니다 */
-  const hintSrc   = String(d.event || "");
-  const typeHint  = useMemo(() => suggestType(hintSrc, d), [hintSrc, d.harm]);
-  const shapeHint = useMemo(() => suggestShape(hintSrc), [hintSrc]);
-  /* 검토용 본문 기준 추천 구분 — 확정할 때 적용됩니다 */
-  const reviewType = useMemo(() => review ? suggestType(review.text, d) : "",
-    [review && review.text, d.harm]);
-
-  /* [검증] — 사용자가 쓴 내용은 그대로 두고 표기·문체·흐름만 손봅니다.
-     결과는 아래 '검토용 경위' 에만 보여주고, 확정을 눌러야 입력란에 들어갑니다. */
-  function runVerify(){
-    const r = refineEvent(d.event);
-    if (!r.text) return;
-    setReview(r);
-  }
-  /* 확정 — 검토용 본문을 사고 경위란에 그대로 채워 넣습니다(저장 대상은 event 하나) */
-  function confirmReview(){
-    if (!review) return;
-    setEvPrev(d.event);
-    const t = suggestType(review.text, d);
-    setD(prev => Object.assign({}, prev, { event: review.text, type: t || prev.type }));
-    setReview(null);
-  }
 
   const dmgMap = {}; (d.dmg || []).forEach(x => dmgMap[x.cat] = x);
   const payMap = {}; (d.pay || []).forEach(x => payMap[x.payer] = x.amt);
@@ -2377,17 +2186,7 @@ function FormDialog(p){
           D(null, h(Lbl, { for:"i-type" }, "사고구분"),
             h(PickSel, { id:"i-type", value:d.type, options:opt(TYPES, "type"),
               onAddOption:add("type"), onRemoveOption:del("type"), removable:rmv("type"),
-              onChange:v => set("type", v) }),
-            /* 사고 경위를 읽어 자동으로 골라 줍니다 — 언제든 위에서 바꿀 수 있습니다 */
-            typeHint && typeHint !== d.type
-              ? D("flex flex-wrap items-center gap-1.5 mt-1.5",
-                  S("text-[11px] text-muted-foreground", "경위로 보면"),
-                  h("button", { type:"button", onClick:() => set("type", typeHint),
-                    className:"inline-flex items-center gap-1 h-7 px-2.5 rounded-full border border-primary bg-accent/60 text-[11.5px] font-medium hover:bg-accent" },
-                    h(Icon, { n:"check", c:"w-3 h-3" }), typeHint, " 적용"),
-                  shapeHint ? S("text-[11px] text-muted-foreground", "· " + shapeHint + " 형태") : null)
-              : (typeHint ? D("text-[11px] text-muted-foreground mt-1.5",
-                  "경위 내용과 일치합니다" + (shapeHint ? " · " + shapeHint + " 형태" : "")) : null)),
+              onChange:v => set("type", v) })),
           D(null, h(Lbl, { for:"i-cause" }, "사고 원인"),
             h(PickSel, { id:"i-cause", value:d.cause, options:opt(CAUSES, "cause"),
               onAddOption:add("cause"), onRemoveOption:del("cause"), removable:rmv("cause"),
@@ -2433,83 +2232,15 @@ function FormDialog(p){
 
         /* ── 사고 경위 및 피해 상황 ────────────────── */
         Grp("사고 경위 및 피해 상황", null,
-          /* ── 사고 경위 — 임시로 적고 [검증] 으로 다듬어 확정합니다 ───── */
+          /* ── 사고 경위 — 적은 내용이 그대로 저장되고 보고서 '사고개요'에 실립니다 ── */
           D(null,
-            D("flex flex-wrap items-center gap-1.5 mb-1.5",
-              h(Lbl, { for:"i-event" }, "사고 경위 (개요)"),
-              S("text-[11px] text-muted-foreground",
-                "아는 대로 적으십시오. 문장은 [검증] 으로 다듬습니다."),
-              D("ml-auto flex flex-wrap items-center gap-1.5",
-                h(Btn, { v:"primary", sz:"sm", icon:"check",
-                  disabled:!String(d.event || "").trim(),
-                  title:"적으신 내용은 그대로 두고 표기·문체·흐름만 다듬어 보여줍니다",
-                  onClick:runVerify }, "검증"),
-                evPrev != null
-                  ? h(Btn, { sz:"sm", icon:"refresh-cw", title:"확정 직전 내용으로 되돌립니다",
-                      onClick:() => { set("event", evPrev); setEvPrev(null); } }, "되돌리기")
-                  : null)),
-            h(Txt, { id:"i-event", value:d.event,
-              onChange:e => { set("event", e.target.value); if (review) setReview(null); },
+            h(Lbl, { for:"i-event" }, "사고 경위 (개요)"),
+            h(Txt, { id:"i-event", value:d.event, onChange:e => set("event", e.target.value),
               className:"min-h-[136px]",
-              placeholder:"예) TC274 운전원이 컨테이너 내리다가 옆 박스 모서리 긁음. 다친 사람은 없음." }),
+              placeholder:"예) TC274 운전원이 컨테이너 하역 중 옆 컨테이너 모서리와 접촉하였습니다. 인명 피해는 없습니다." }),
             D("text-[11px] text-muted-foreground mt-1",
               "이 칸의 내용이 그대로 저장됩니다. 보험 접수 여부와 과실 비율은 위쪽 항목에서 따로 관리하므로 "
-              + "여기에는 사고 경위와 상황만 적으십시오."),
-
-            /* 검토용 경위 — 확정을 눌러야 위 입력란에 들어갑니다. 그 전에는 저장되지 않습니다 */
-            review ? D("mt-3 rounded-lg border border-primary bg-accent/60 p-3",
-              D("flex flex-wrap items-center gap-2 mb-2",
-                S("text-[12px] font-bold text-foreground", "검토용 경위 (추천)"),
-                S({ className:"rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10.5px] font-bold" },
-                  "확정 전"),
-                S("text-[11px] text-muted-foreground",
-                  "적으신 사실은 그대로 두고 표기·문체만 손봤습니다. 여기서 더 고치셔도 됩니다.")),
-
-              h(Txt, { id:"i-event-review", value:review.text,
-                onChange:e => setReview(Object.assign({}, review, { text:e.target.value })),
-                className:"min-h-[136px] bg-card" }),
-
-              review.changes.length
-                ? D("mt-2",
-                    D("text-[11px] font-bold text-foreground mb-1",
-                      "고친 곳 " + review.changes.length + "군데"),
-                    D("flex flex-wrap gap-1.5",
-                      review.changes.slice(0, 12).map((c, k) =>
-                        S({ key:k, className:"inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[11px]" },
-                          S("text-muted-foreground", c.kind), c.from, "→", S("font-medium", c.to)))))
-                : D("mt-2 text-[11px] text-muted-foreground", "고칠 곳이 없었습니다. 그대로 확정하셔도 됩니다."),
-
-              review.hedges.length
-                ? D({ className:"mt-2 rounded-md border px-2.5 py-1.5 text-[11px]",
-                      style:{ borderColor:"hsl(var(--warn))", background:"var(--warn-bg)", color:"var(--warn-ink)" } },
-                    "확인이 필요한 표현: ", S("font-medium", review.hedges.join(" · ")),
-                    " — 추측이나 과장으로 읽힐 수 있습니다. 확인된 사실만 남기십시오.")
-                : null,
-
-              D("flex flex-wrap items-center gap-1.5 mt-3",
-                h(Btn, { v:"ok", sz:"sm", icon:"circle-check-big",
-                  title:"이 내용을 위 사고 경위란에 그대로 채워 넣습니다",
-                  onClick:confirmReview }, "이 내용으로 확정"),
-                h(Btn, { v:"ghost", sz:"sm", icon:"x",
-                  onClick:() => setReview(null) }, "취소"),
-                reviewType && reviewType !== d.type
-                  ? S("text-[11px] text-muted-foreground ml-1",
-                      "확정하면 사고구분이 ‘" + reviewType + "’ 로 지정됩니다(나중에 바꿀 수 있습니다).")
-                  : null))
-            : null),
-
-          /* 사고구분 — 경위를 기준으로 추천하고, 최종 선택은 사용자가 합니다 */
-          D("mt-3 flex flex-wrap items-center gap-2",
-            S("text-[11.5px] font-bold text-foreground", "사고구분"),
-            S({ className:"rounded-md border border-border bg-card px-2.5 py-1 text-[12.5px] font-medium" },
-              d.type || "미지정"),
-            typeHint && typeHint !== d.type
-              ? h(Btn, { sz:"sm", icon:"refresh-cw",
-                  title:"경위 본문을 다시 읽어 사고구분을 바꿉니다",
-                  onClick:() => set("type", typeHint) }, typeHint + " 로 변경")
-              : null,
-            shapeHint ? S("text-[11px] text-muted-foreground", "· " + shapeHint + " 형태") : null,
-            S("text-[11px] text-muted-foreground", "위쪽 ‘사고구분’ 칸에서 직접 고를 수도 있습니다.")),
+              + "여기에는 사고 경위와 상황만 적으십시오.")),
 
           /* 보험 접수 여부 — 피해 상황 앞에 둡니다 */
           D("mt-3",
@@ -2680,6 +2411,14 @@ function FormDialog(p){
                 h("input", { id:"r-attach", value:rd.attach || "", onChange:e => setRound("attach", e.target.value),
                   placeholder:"사고발생보고서(운영팀), 운전원 경위서", className:cls(FIELD, "h-9") }))),
 
+            /* 증빙 파일 — 이 회차 보고서의 '증빙자료(붙임)' 에 파일명이 실립니다 */
+            D("mt-3 rounded-md border border-dashed border-border px-3",
+              D("text-[11.5px] font-bold text-foreground pt-3",
+                "증빙 파일 첨부 — PDF · 엑셀 · 한글 · 워드 (이 회차 보고서의 ‘증빙자료(붙임)’ 에 실립니다)"),
+              h(Attach, { key:"rf-" + ri, rec:{ files: rd.files || [] }, noBorder:true, hideTitle:true, docs:true,
+                idSuffix:"round-" + ri,
+                onSave:async next => setRound("files", next.files || []) })),
+
             rd.kind === "종결" ? D("grid gap-3 sm:grid-cols-2 mt-3",
               D(null, h(Lbl, { for:"r-act" }, "가. 조치사항"),
                 h(Txt, { id:"r-act", value:rd.act || "", onChange:e => setRound("act", e.target.value),
@@ -2720,9 +2459,11 @@ function FormDialog(p){
             D(null, h(Lbl, { for:"i-insno" }, "보험 접수번호"),
               h("input", { id:"i-insno", value:d.insNo, onChange:e => set("insNo", e.target.value),
                 placeholder:"24-01257780", className:cls(FIELD, "h-9 font-mono") })),
-            D("sm:col-span-2", h(Lbl, { for:"i-surv" }, "손해사정인 (회사 / 담당자 / 연락처)"),
-              h("input", { id:"i-surv", value:d.surveyor, onChange:e => set("surveyor", e.target.value),
-                className:cls(FIELD, "h-9") }))),
+            D("sm:col-span-2", h(Lbl, { for:"i-surv" }, "손해사정인 (회사 / 이름 / 직급 / 연락처)"),
+              h(Txt, { id:"i-surv", value:d.surveyor, onChange:e => set("surveyor", e.target.value),
+                className:"min-h-[64px]",
+                placeholder:"국제손해사정/김정후\n지점장/010-8795-9104\n보험사: ○○화재해상" }),
+              svPreview(d.surveyor))),
           D("grid gap-3 sm:grid-cols-3 mt-3",
             D(null, h(Lbl, { for:"i-owner" }, "법인 담당자 · 전표번호"),
               h("input", { id:"i-owner", value:d.owner, onChange:e => set("owner", e.target.value),
@@ -3114,6 +2855,38 @@ function Attach(p){
   const srcOf = f => (assets && assets.local ? (urls[f.id] || "") : blobSrc(f));
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
+  /* 최신 목록 — 설명 입력칸에서 바로 ▲▼ 를 누르면 blur(설명 저장) 직후 click 이 오므로
+     저장이 반영되기 전 목록으로 덮어쓰지 않도록 따로 들고 있습니다 */
+  const cur = useRef(files);
+  const seen = useRef(files);
+  if (seen.current !== files){ seen.current = files; cur.current = files; }
+  const commit = async next => { cur.current = next; await p.onSave(Object.assign(clone(p.rec), { files: next })); };
+
+  /* 사진 번호 ①②… — 보고서와 같은 순서 */
+  const imgNo = {};
+  files.filter(isImg).forEach((x, k) => { imgNo[x.id] = k < 20 ? String.fromCharCode(0x2460 + k) : "(" + (k + 1) + ")"; });
+
+  /* 같은 종류(사진끼리 · 파일끼리)에서 바로 앞/뒤 항목과 자리를 바꿉니다 */
+  const stepOf = (list, i, dir) => {
+    let j = i + dir;
+    while (j >= 0 && j < list.length && isImg(list[j]) !== isImg(list[i])) j += dir;
+    return j >= 0 && j < list.length ? j : -1;
+  };
+  async function move(id, dir){
+    const list = cur.current.slice();
+    const i = list.findIndex(x => x.id === id);
+    const j = i < 0 ? -1 : stepOf(list, i, dir);
+    if (j < 0) return;
+    const t = list[i]; list[i] = list[j]; list[j] = t;
+    await commit(list);
+  }
+  async function setCap(id, v){
+    const cap = String(v || "").trim();
+    const list = cur.current;
+    const f = list.find(x => x.id === id);
+    if (!f || (f.cap || "") === cap) return;
+    await commit(list.map(x => x.id === id ? Object.assign({}, x, { cap }) : x));
+  }
 
   async function add(e){
     const list = Array.from(e.target.files || []);
@@ -3134,7 +2907,7 @@ function Attach(p){
       }
     }
     setBusy("");
-    if (added.length) await p.onSave(Object.assign(clone(p.rec), { files: files.concat(added) }));
+    if (added.length) await p.onSave(Object.assign(clone(p.rec), { files: cur.current.concat(added) }));
   }
   async function del(f){
     if (!assets) return;
@@ -3143,7 +2916,7 @@ function Attach(p){
     if (!ok) return;
     setBusy("삭제 중…");
     try { await assets.delete(f.id); } catch (e) {}
-    await p.onSave(Object.assign(clone(p.rec), { files: files.filter(x => x.id !== f.id) }));
+    await commit(cur.current.filter(x => x.id !== f.id));
     setBusy("");
   }
 
@@ -3157,9 +2930,10 @@ function Attach(p){
       assets ? D("ml-auto",
         h("label", { htmlFor:inputId,
           className:"inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-input bg-card hover:bg-accent cursor-pointer text-[12.5px] font-medium" },
-          h(Icon, { n:"camera", c:"w-3.5 h-3.5" }), "사진·파일 추가"),
+          h(Icon, { n:p.docs ? "paperclip" : "camera", c:"w-3.5 h-3.5" }), p.docs ? "파일 추가" : "사진·파일 추가"),
         h("input", { id:inputId, type:"file", multiple:true,
-          accept:"image/*,.pdf", onChange:add, className:"hidden" })) : null),
+          accept:"image/*,.pdf,.xls,.xlsx,.xlsm,.csv,.doc,.docx,.hwp,.hwpx,.ppt,.pptx,.txt,.zip",
+          onChange:add, className:"hidden" })) : null),
 
     err ? D("mb-2 text-[11.5px] text-destructive", err) : null,
     busy ? D("mb-2 text-[11.5px] text-muted-foreground", busy) : null,
@@ -3168,7 +2942,8 @@ function Attach(p){
     : assets === null && !files.length ? D("text-[12.5px] text-muted-foreground",
         "이 브라우저에서는 첨부를 쓸 수 없습니다(IndexedDB 사용 불가). 시크릿 모드이거나 사이트 데이터가 차단된 상태일 수 있습니다.")
     : !files.length ? D("text-[12.5px] text-muted-foreground",
-        "첨부가 없습니다. 현장 사진을 올리면 사고보고서 사진란에 자동으로 들어갑니다.")
+        p.docs ? "첨부한 증빙 파일이 없습니다."
+          : "첨부가 없습니다. 현장 사진을 올리면 사고보고서 사진란에 자동으로 들어갑니다.")
     : D("grid gap-2 grid-cols-2 sm:grid-cols-3",
         files.map(f => D({ key:f.id, className:"relative rounded-md border border-border overflow-hidden bg-muted/40 group" },
           !srcOf(f)
@@ -3180,11 +2955,25 @@ function Attach(p){
             : h("a", { href:srcOf(f), target:"_blank", rel:"noopener", download:assets && assets.local ? f.name : undefined,
                 className:"flex flex-col items-center justify-center gap-1.5 h-[104px] text-muted-foreground hover:text-foreground" },
                 h(Icon, { n:"file-text", c:"w-6 h-6" }), S("text-[11px] px-2 text-center truncate w-full", f.name)),
-          D("px-2 py-1.5 border-t border-border bg-card flex items-center gap-1.5",
+          D("px-2 py-1.5 border-t border-border bg-card flex items-center gap-1",
+            isImg(f) ? S("font-mono text-[12px] font-bold text-primary shrink-0", imgNo[f.id]) : null,
             S("text-[10.5px] truncate flex-1", f.name),
-            assets ? h("button", { onClick:() => del(f), "aria-label":"삭제",
-              className:"text-muted-foreground hover:text-destructive shrink-0" },
-              h(Icon, { n:"trash-2", c:"w-3.5 h-3.5" })) : null)))));
+            assets ? [["chevron-up", -1, "위로"], ["chevron-down", 1, "아래로"]].map(o =>
+              h("button", { key:o[0], type:"button", onClick:() => move(f.id, o[1]),
+                disabled:stepOf(files, files.indexOf(f), o[1]) < 0,
+                "aria-label":o[2], title:(isImg(f) ? "사진" : "파일") + " 순서 " + o[2],
+                className:"inline-flex items-center justify-center h-6 w-6 rounded border border-border bg-card hover:bg-accent shrink-0 disabled:opacity-50" },
+                h(Icon, { n:o[0], c:"w-3.5 h-3.5" }))) : null,
+            assets ? h("button", { type:"button", onClick:() => del(f), "aria-label":"삭제",
+              className:"text-muted-foreground hover:text-destructive shrink-0 ml-0.5" },
+              h(Icon, { n:"trash-2", c:"w-3.5 h-3.5" })) : null),
+          /* 사진 설명 — 보고서 사진 아래에 그대로 실립니다 (칸을 벗어나거나 Enter 를 누르면 저장) */
+          isImg(f) ? D("px-2 pb-2 bg-card",
+            h("input", { key:f.id + ":" + (f.cap || ""), defaultValue:f.cap || "", disabled:!assets,
+              "aria-label":"사진 설명", placeholder:"사진 설명 (보고서에 표시)",
+              onBlur:e => setCap(f.id, e.target.value),
+              onKeyDown:e => { if (e.key === "Enter"){ e.preventDefault(); e.target.blur(); } },
+              className:FIELD, style:{ height:"30px", padding:"4px 8px", fontSize:"12px" } })) : null))));
 }
 
 /* 인쇄용으로 사진을 줄인다 — 긴 변 1600px, JPEG. 원본을 그대로 넣으면 파일이 너무 커진다 */
@@ -3232,6 +3021,51 @@ async function inlineImages(r){
   return map;
 }
 
+/* ═══════════ 손해사정인 칸 나눠 읽기 ═══════════
+   기존 입력 형식 그대로 — "국제손해사정/김정후\n지점장/010-8795-9104\n접수번호: 24-02062179\n(5/9 접수)"
+   → { org, name, title, phone, extra[], no, recv, insurer }
+   보험사는 따로 칸이 없으므로 ① "보험사: ○○" 줄이 있으면 그것, ② 회사명이 손해사정사가 아니라
+   보험사(해상·화재·보험·손보·특종)이면 그 회사를 씁니다. */
+const SV_TITLE = /(지점장|센터장|본부장|팀장|부장|차장|과장|대리|주임|사원|이사|상무|전무|대표|실장|소장|책임|선임)$/;
+const SV_PHONE = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+function parseSurveyor(txt){
+  const raw = String(txt || "").trim();
+  const o = { raw, org:"", insurer:"", name:"", title:"", phone:"", extra:[], no:"", recv:"" };
+  if (!raw) return o;
+  let t = raw
+    .replace(/보험사\s*[:：]\s*([^\n/]+)/, (m, v) => { o.insurer = v.trim(); return ""; })
+    .replace(/접수\s*번호\s*[:：]?\s*([^\n]+)/, (m, v) => { o.no = v.trim(); return ""; })
+    .replace(/\(\s*(\d{1,2}\s*\/\s*\d{1,2})\s*접수\s*\)/, (m, v) => { o.recv = v.replace(/\s/g, "") + " 접수"; return ""; });
+  const tk = t.split(/[\n/]+/).map(x => x.trim()).filter(Boolean);
+  if (tk.length && !SV_PHONE.test(tk[0])) o.org = tk.shift();
+  if (tk.length && !SV_PHONE.test(tk[0])){
+    let n = tk.shift();
+    const m = n.match(SV_TITLE);
+    if (m && n.length > m[0].length){ o.title = m[0]; n = n.slice(0, -m[0].length).trim(); }
+    else if (m){ o.title = n; n = ""; }
+    o.name = n;
+  }
+  if (!o.title && tk.length && tk[0].length <= 5 && SV_TITLE.test(tk[0])) o.title = tk.shift();
+  if (tk.length && SV_PHONE.test(tk[0])) o.phone = tk.shift();
+  let lab = "";   /* 남은 연락처 — "DB 010-…" · "박강연책임 010-…" */
+  tk.forEach(x => { if (SV_PHONE.test(x)){ o.extra.push((lab ? lab + " " : "") + x); lab = ""; } else lab = lab ? lab + " " + x : x; });
+  if (lab) o.extra.push(lab);
+  if (!o.insurer && /(해상|화재|보험|손보|특종|공제)/.test(o.org) && !/손해사정|손사/.test(o.org)) o.insurer = o.org;
+  return o;
+}
+/* 입력 폼 — 종결보고에 어떻게 나뉘어 실리는지 미리 보여줍니다 */
+function svPreview(txt){
+  const v = parseSurveyor(txt);
+  if (!v.raw) return null;
+  const part = (k, x) => x ? S(null, S("text-muted-foreground", k + " "), S("font-medium text-foreground", x)) : null;
+  return D("mt-1.5 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px]",
+    S("font-bold text-foreground", "종결보고 표시"),
+    part("보험사", v.insurer || "— (‘보험사: ○○’ 줄을 넣으면 표시)"),
+    part("손해사정인", [v.name, v.title].filter(Boolean).join(" ")),
+    part("소속", v.org),
+    part("연락처", [v.phone].concat(v.extra).filter(Boolean).join(" · ")));
+}
+
 /* ═══════════ 결재용 사고상황보고 (요약 1면 + 상세 1면) ═══════════ */
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 const nl = s => esc(s).replace(/\n/g, "<br>");
@@ -3241,10 +3075,11 @@ const RPT_CSS = `
 .rpt{background:#fff;color:#111;font-family:"Malgun Gothic","맑은 고딕",system-ui,sans-serif;font-size:10.5pt;line-height:1.55}
 .rpt .sheet{width:190mm;min-height:277mm;margin:0 auto 6mm;padding:13mm 12mm;background:#fff}
 .rpt .sheet:last-child{margin-bottom:0}
-.rpt h1{font-size:17pt;font-weight:700;letter-spacing:.05em;margin:0}
+.rpt h1{font-size:24pt;font-weight:800;letter-spacing:.3em;padding-left:.3em;margin:0;line-height:1.2}
 .rpt .sub{font-family:Consolas,"D2Coding",ui-monospace,monospace;font-size:8.5pt;color:#555;margin-top:1.5mm}
-.rpt .top{display:flex;gap:6mm;align-items:flex-start;margin-bottom:5mm}
-.rpt .ttl{flex:1;padding-top:2mm}
+.rpt .top{display:flex;gap:6mm;align-items:stretch;margin-bottom:5mm}
+/* 타이틀 — 오른쪽 결재란과 같은 높이 안에서 가로·세로 가운데 */
+.rpt .ttl{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .rpt .sign{border-collapse:collapse;margin-left:auto;flex:none}
 .rpt .sign td,.rpt .sign th{border:1px solid #333;text-align:center;font-size:8.5pt;padding:0}
 .rpt .sign th{background:#f0f2f4;height:6.5mm;width:19mm;font-weight:600}
@@ -3255,7 +3090,9 @@ const RPT_CSS = `
 .rpt h2 span{margin-left:auto;font-family:Consolas,"D2Coding",ui-monospace,monospace;font-size:8.5pt;font-weight:600;
   color:#555;letter-spacing:.02em}
 .rpt table.g{width:100%;border-collapse:collapse}
-.rpt table.g th,.rpt table.g td{border:1px solid #b8bfc6;padding:1.8mm 2.4mm;font-size:9.5pt;vertical-align:top;text-align:left}
+/* 단답형(항목명·날짜·번호 등)은 가운데, 긴 글은 td.l 로 왼쪽 */
+.rpt table.g th,.rpt table.g td{border:1px solid #b8bfc6;padding:1.8mm 2.4mm;font-size:9.5pt;vertical-align:middle;text-align:center}
+.rpt table.g td.l{text-align:left;vertical-align:top}
 .rpt table.g th{background:#f0f2f4;font-weight:600;white-space:nowrap;width:26mm}
 .rpt table.g td.r{text-align:right;font-family:Consolas,"D2Coding",ui-monospace,monospace}
 .rpt table.g tr.sum td,.rpt table.g tr.sum th{background:#f6f7f9;font-weight:700}
@@ -3321,8 +3158,9 @@ const RPT_CSS = `
 .rpt .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:3mm}
 .rpt .pcard{border:1px solid #b8bfc6;background:#fff;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
 .rpt .pcard img{display:block;width:100%;height:62mm;object-fit:contain;background:#fff}
-.rpt .pcard .cap{font-size:8pt;color:#555;padding:1mm 2mm;border-top:1px solid #e3e7ea;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rpt .pcard .cap{font-size:8.5pt;color:#222;padding:1.2mm 2mm;border-top:1px solid #e3e7ea;
+  text-align:center;white-space:pre-wrap;word-break:break-word}
+.rpt .pcard .cap b{color:#003D8A;margin-right:1.2mm}
 .rpt .pnone{border:1px dashed #9aa3ab;padding:8mm;text-align:center;color:#8c959d;font-size:9pt;
   background:repeating-linear-gradient(45deg,#fafbfc,#fafbfc 6px,#f4f6f8 6px,#f4f6f8 12px)}
 
@@ -3331,8 +3169,9 @@ const RPT_CSS = `
 .rpt .sec{break-inside:avoid;page-break-inside:avoid}
 .rpt table.g tr{break-inside:avoid;page-break-inside:avoid}
 @media print{
-  @page{size:A4;margin:0}
-  .rpt .sheet{width:auto;min-height:auto;padding:12mm 10mm;margin:0}
+  /* 쪽 여백은 @page 로 — .sheet 안쪽 여백만 쓰면 2쪽부터 위쪽이 종이 끝에 붙습니다 */
+  @page{size:A4;margin:14mm 10mm 12mm}
+  .rpt .sheet{width:auto;min-height:auto;padding:0;margin:0}
   .rpt{font-size:10pt}
   .noprint{display:none!important}
 }`;
@@ -3356,7 +3195,10 @@ function reportBody(r, srcMap, ridx){
   const ri  = Math.max(0, Math.min(ridx == null ? rounds.length - 1 : ridx, rounds.length - 1));
   const rd  = rounds[ri];
   const end = rd.kind === "종결";
-  const title = RTITLE[rd.kind] || "사고상황보고";
+  const title = "사고상황보고";
+  /* 진행상태 — (초기) · (중간) · (종결). 중간보고가 여러 번이면 (중간 2차) 처럼 차수를 붙입니다 */
+  const midN = rounds.filter(x => x.kind === "중간").length;
+  const stTxt = rd.kind === "중간" && midN > 1 ? "중간 " + roundLabel(rounds, ri).replace(/^중간/, "") + "차" : (rd.kind || "초기");
 
   const dmg = (r.dmg || []).filter(d => d.desc || d.cost || d.fin);
   const est = Number(r.dmgTotal) || 0;
@@ -3403,7 +3245,7 @@ function reportBody(r, srcMap, ridx){
   /* 피해 대상과 상세내역 — 금액과 무관하게 항상 보여 준다 */
   const dmgTable = `<table class="g" style="margin-top:2mm">
   <tr><th style="width:26mm">피해 대상</th><th style="width:auto;background:#f0f2f4">상 세 내 역</th></tr>
-  ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th><td>${nl(d.desc) || "—"}</td></tr>`).join("")
+  ${dmg.length ? dmg.map(d => `<tr><th>${esc(d.cat)}</th><td class="l">${nl(d.desc) || "—"}</td></tr>`).join("")
     : `<tr><td colspan="2" style="text-align:center;color:#888">기재된 피해내역 없음</td></tr>`}
 </table>`;
 
@@ -3422,10 +3264,24 @@ function reportBody(r, srcMap, ridx){
   <tr class="sum"><th>합 계</th><td class="r">${won(paidTot)}</td></tr>
 </table>` : "";
 
+  /* 보험 — 종결보고에서 접수 건이면 보험사·접수번호·손해사정인(이름·연락처·소속)을 펼쳐 보여줍니다 */
+  const sv = parseSurveyor(r.surveyor);
+  const insNo = r.insNo || sv.no;
+  const insRows = end && r.insFiled
+    ? `<tr><th>보험접수</th><td>접수${sv.recv ? " (" + esc(sv.recv) + ")" : ""}</td>
+      <th>보 험 사</th><td>${esc(sv.insurer || "—")}</td>
+      <th>접수번호</th><td class="mono">${esc(insNo || "—")}</td></tr>
+  ${sv.name || sv.phone || sv.org
+    ? `<tr><th>손해사정인</th><td>${esc([sv.name, sv.title].filter(Boolean).join(" ") || "—")}</td>
+      <th>소　　속</th><td>${esc(sv.org || "—")}</td>
+      <th>연 락 처</th><td class="mono">${esc(sv.phone || "—")}${sv.extra.map(x => "<br>" + esc(x)).join("")}</td></tr>`
+    : `<tr><th>손해사정인</th><td colspan="5">—</td></tr>`}`
+    : `<tr><th>보험접수</th><td colspan="5">${r.insFiled ? "접수" : "미접수"}${insNo ? " · 접수번호 " + esc(insNo) : ""}</td></tr>`;
+
   /* ── 사고 기본사항 — 대표이사가 한눈에 보는 머리표 ── */
   const hdr = `<table class="g hd">
   <tr><th>사고번호</th><td class="mono" colspan="3">${esc(r.no)}</td>
-      <th>진행상태</th><td><span class="st${end ? " done" : ""}">${end ? "종  결" : esc(roundLabel(rounds, ri)) + " 보고"}</span></td></tr>
+      <th>진행상태</th><td><span class="st${end ? " done" : ""}">(${esc(stTxt)})</span></td></tr>
   <tr><th>소　　속</th><td>${esc(orgLabel(r))}</td><th>운 전 자</th><td>${esc(r.who || "—")}</td>
       <th>장비번호</th><td class="mono">${esc(r.equip || r.dept || "—")}</td></tr>
   <tr><th>사고일시</th><td class="mono">${esc(ymd(r.date))}${r.time ? " " + esc(r.time) : ""}</td>
@@ -3434,7 +3290,7 @@ function reportBody(r, srcMap, ridx){
       <th>귀 책 자</th><td>${esc(r.blame || "—")}</td></tr>
   <tr><th>사고구분</th><td colspan="3">${esc(r.type || "—")}</td>
       <th>과실비율</th><td class="mono">${r.faultPct === "" || r.faultPct == null ? "—" : esc(r.faultPct) + "%"}</td></tr>
-  <tr><th>보험접수</th><td colspan="5">${r.insFiled ? "접수" : "미접수"}${r.insNo ? " · 접수번호 " + esc(r.insNo) : ""}</td></tr>
+  ${insRows}
 </table>`;
 
   /* 사고 금액 — 총액·자부담을 먼저, 그 아래 내역표 */
@@ -3447,17 +3303,22 @@ function reportBody(r, srcMap, ridx){
 </div>${bar}
 <div style="margin-top:3mm">${money}</div>${payTable}`;
 
-  /* 증빙 자료 — 첨부한 사진 전부 */
+  /* 증빙 자료(붙임) — 첨부한 사진 전부(사진 설명 포함) + 붙임 목록(붙임 글 · 사진 외 첨부 · 이 회차 증빙 파일) */
   const circ = i => (i < 20 ? String.fromCharCode(0x2460 + i) : "(" + (i + 1) + ")");
-  const etcFiles = (r.files || []).filter(f => !isImg(f));
+  const etcFiles = (r.files || []).filter(f => !isImg(f)).concat(rd.files || []);
   const photosBlock = imgs.length
     ? `<div class="pgrid">${imgs.map((f, i) =>
         `<div class="pcard"><img src="${src(f)}" alt="현장 사진 ${i + 1}">
-<div class="cap">현장 사진 ${circ(i)} · ${esc(f.name)}</div></div>`).join("")}</div>`
-      + (etcFiles.length ? `<div class="memo">※ 사진 외 첨부 : ${etcFiles.map(f => esc(f.name)).join(", ")}</div>` : "")
+<div class="cap"><b>${circ(i)}</b>${esc(String(f.cap || "").trim() || "현장 사진")}</div></div>`).join("")}</div>`
     : `<div class="pnone">첨부된 현장 사진이 없습니다 — 인쇄 후 사진을 부착하십시오.</div>`;
+  const attachList = (String(rd.attach || "").trim() ? [String(rd.attach).trim()] : [])
+    .concat(etcFiles.map(f => f.name));
+  const attachBlock = `<table class="g" style="margin-top:2mm">
+  <tr><th style="width:26mm">붙　　임</th><td class="l">${attachList.length
+    ? attachList.map((x, i) => (attachList.length > 1 ? (i + 1) + ". " : "") + esc(x)).join("<br>") : "없음"}</td></tr>
+</table>`;
 
-  /* 본문 순서 — 사고개요 → 피해사항 → (금액) → 진행사항 / 조치·재발방지 → 기타 → 증빙 */
+  /* 본문 순서 — 사고개요 → 피해사항 → (금액) → 진행사항 / 조치·재발방지 → 증빙자료(붙임) → 기타사항(맨 끝) */
   const etcTxt = end
     ? (rd.etc || "") + ((rd.release || "").trim() ? (rd.etc ? "\n" : "") + "○ " + rd.release : "")
     : (rd.etc || "");
@@ -3473,8 +3334,8 @@ function reportBody(r, srcMap, ridx){
 ${nl(rd.act)}</div><div>나. 재발방지대책
 ${nl(rd.prev)}</div></div>`, ""]);
   else secs.push(["진 행 사 항", `<div class="body">${nl(rd.progress) || "&nbsp;"}</div>`, ""]);
+  secs.push(["증 빙 자 료 (붙 임)", photosBlock + attachBlock, imgs.length ? "현장 사진 " + imgs.length + "장" : ""]);
   secs.push(["기 타 사 항", `<div class="body">${nl(etcTxt) || "&nbsp;"}</div>`, ""]);
-  secs.push(["증 빙 자 료", photosBlock, imgs.length ? "현장 사진 " + imgs.length + "장" : ""]);
 
   const bodyHtml = secs.map((x, i) =>
     `<h2>${i + 1}. ${x[0]}${x[2] ? `<span>${esc(x[2])}</span>` : ""}</h2>
@@ -3494,9 +3355,6 @@ ${bodyHtml}
   <span>작성일 <span class="mono">${new Date().toISOString().slice(0, 10)}</span></span>
   <span>광양항서부컨테이너터미널 안전관리팀</span>
 </div>
-<div class="memo">■ 붙임 : ${esc(rd.attach || "없음")}<br>
-※ 결재란은 오프라인 서명용 공란이며, 사내 정식 전자결재를 대체하지 않습니다.<br>
-※ 출처: 사고현황관리 DB — ${esc(r.no)} / 최종 수정 ${esc((r.updatedAt || "").slice(0, 10))}</div>
 </div></div>`;
 }
 
@@ -3514,7 +3372,7 @@ function reportDoc(r, srcMap, ri){
 const FS_OK = typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 const FSDB = { name:"gwct_fs", store:"handles", key:"reportRoot" };
 
-function idbOpen(){
+function fsDbOpen(){
   return new Promise((res, rej) => {
     try {
       const rq = indexedDB.open(FSDB.name, 1);
@@ -3526,7 +3384,7 @@ function idbOpen(){
   });
 }
 function idbGet(key){
-  return idbOpen().then(db => new Promise((res, rej) => {
+  return fsDbOpen().then(db => new Promise((res, rej) => {
     const tx = db.transaction(FSDB.store, "readonly");
     const rq = tx.objectStore(FSDB.store).get(key);
     rq.onsuccess = () => res(rq.result || null);
@@ -3534,7 +3392,7 @@ function idbGet(key){
   })).catch(() => null);
 }
 function idbSet(key, val){
-  return idbOpen().then(db => new Promise((res, rej) => {
+  return fsDbOpen().then(db => new Promise((res, rej) => {
     const tx = db.transaction(FSDB.store, "readwrite");
     tx.objectStore(FSDB.store).put(val, key);
     tx.oncomplete = () => res(true);
@@ -3723,9 +3581,50 @@ function ReportView(p){
 }
 
 /* ═══════════ 앱 ═══════════ */
+const THEME_KEY = "gwct_theme";   /* 헤더 스위치로 고른 화면 모드 — 이 브라우저에만 기억 */
+const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
+/* 헤더 — 실시간 날짜·시각 */
+function Clock(){
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  const p2 = n => String(n).padStart(2, "0");
+  return D({ className:"text-right leading-tight", "aria-label":"현재 날짜와 시각" },
+    D("text-[11px] font-mono on-navy-sub",
+      now.getFullYear() + "." + p2(now.getMonth() + 1) + "." + p2(now.getDate()) + " (" + WEEK[now.getDay()] + ")"),
+    D("text-[16px] font-mono font-semibold text-white tnum",
+      p2(now.getHours()) + ":" + p2(now.getMinutes()) + ":" + p2(now.getSeconds())));
+}
+/* 헤더 — 라이트 ↔ 다크 전환 스위치 */
+function ThemeSwitch(){
+  const isDark = () => document.documentElement.classList.contains("dark");
+  const [dark, setDark] = useState(isDark);
+  useEffect(() => {
+    const mo = new MutationObserver(() => setDark(isDark()));
+    mo.observe(document.documentElement, { attributes:true, attributeFilter:["class"] });
+    setDark(isDark());
+    return () => mo.disconnect();
+  }, []);
+  function flip(){
+    const next = dark ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e){}
+  }
+  return h("button", { type:"button", role:"switch", "aria-checked":dark, onClick:flip,
+      title:dark ? "라이트 모드로 전환" : "다크 모드로 전환",
+      className:"inline-flex items-center gap-1.5 h-9 px-2.5 rounded-md border border-white/40 bg-white/10 text-white hover:bg-white/20 text-[12px] font-medium" },
+    h(Icon, { n:"sun", c:"w-4 h-4" }),
+    S({ style:{ position:"relative", display:"inline-block", width:"32px", height:"18px", borderRadius:"9px",
+        background:dark ? "#5598e7" : "rgba(255,255,255,.35)", transition:"background .15s" } },
+      S({ style:{ position:"absolute", top:"2px", left:dark ? "16px" : "2px", width:"14px", height:"14px",
+          borderRadius:"50%", background:"#fff", transition:"left .15s" } })),
+    h(Icon, { n:"moon", c:"w-4 h-4" }),
+    S({ className:"hidden sm:inline" }, dark ? "다크" : "라이트"));
+}
+
 function useTheme(){
   useEffect(() => {
     const root = document.documentElement;
+    try { const t = localStorage.getItem(THEME_KEY); if (t === "dark" || t === "light") root.setAttribute("data-theme", t); } catch (e){}
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
       const t = root.getAttribute("data-theme");
@@ -3981,7 +3880,11 @@ function App(){
             ident.canWrite ? h(Btn, { v:"white", icon:"plus",
               onClick:() => setForm(Object.assign(blankIncident(), {
                 no:nextNo(store.rows, "GWCT", new Date().getFullYear()) })) }, "신규 사고 등록")
-              : h(Badge, { className:"border-white/35 bg-white/10 text-white" }, "읽기 전용")))),
+              : h(Badge, { className:"border-white/35 bg-white/10 text-white" }, "읽기 전용")),
+          /* 오른쪽 끝 — 화면 모드 스위치와 실시간 날짜·시각 */
+          D("flex items-center gap-3 ml-auto",
+            h(ThemeSwitch),
+            h(Clock)))),
       /* 안전 슬로건 띠 — 현장 운영 화면다운 톤을 만듭니다 */
       D("safety-strip noprint",
         D("max-w-[1280px] mx-auto px-4 sm:px-5 py-1.5 flex items-center gap-3 text-[11.5px]",
